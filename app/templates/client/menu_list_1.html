@@ -1,0 +1,187 @@
+<!-- app/templates/client/menu_list.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 주문{% endblock %}
+
+{% block content %}
+<div x-data="{
+    cart: [],
+    showCartModal: false,
+    specialInstruction: '',
+    isSubmitting: false,
+
+    get totalCount() {
+        return this.cart.reduce((acc, item) => acc + item.quantity, 0);
+    },
+    get totalPrice() {
+        return this.cart.reduce((acc, item) => acc + item.subtotalPrice, 0);
+    },
+    removeFromCart(index) {
+        this.cart.splice(index, 1);
+        if (this.cart.length === 0) this.showCartModal = false;
+    },
+    async submitOrder() {
+        if (this.cart.length === 0 || this.isSubmitting) return;
+        this.isSubmitting = true;
+
+        const payload = {
+            qr_token: '{{ qr_token }}',
+            special_instruction: this.specialInstruction,
+            cart_items: this.cart.map(item => ({
+                item_id: item.itemId,
+                item_name: item.itemName,
+                base_price: item.basePrice,
+                quantity: item.quantity,
+                subtotal_price: item.subtotalPrice,
+                options: item.options
+            }))
+        };
+
+        try {
+            const res = await fetch('/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('주문 전송 실패');
+            
+            const html = await res.text();
+            document.getElementById('main-container').innerHTML = html;
+        } catch (err) {
+            alert('주문 처리 중 오류가 발생했습니다. 직원을 호출해 주세요.');
+        } finally {
+            this.isSubmitting = false;
+        }
+    }
+}" 
+@add-to-cart.window="cart.push($event.detail)"
+id="main-container"
+class="pb-24">
+
+    <!-- 상단 매장 & 테이블 바 -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-gray-200 px-4 py-3 -mx-4 -mt-4 mb-4 flex justify-between items-center shadow-sm">
+        <div>
+            <h1 class="text-base font-bold text-gray-900 leading-tight">{{ store.name }}</h1>
+            <p class="text-xs text-blue-600 font-semibold">테이블 {{ table.table_number }}번</p>
+        </div>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-green-100 text-green-800">
+            주문 가능
+        </span>
+    </header>
+
+    <!-- 카테고리 앵커 스크롤 탭 -->
+    <nav class="sticky top-12 z-20 bg-gray-100 -mx-4 px-4 py-2 flex space-x-2 overflow-x-auto no-scrollbar border-b border-gray-200">
+        {% for cat in categories %}
+        <a href="#category-{{ cat.id }}" 
+           class="whitespace-nowrap px-3.5 py-1.5 text-xs font-semibold rounded-full bg-white text-gray-700 shadow-sm border border-gray-200 hover:bg-blue-50 active:bg-blue-100">
+            {{ cat.name }}
+        </a>
+        {% endfor %}
+    </nav>
+
+    <!-- 메뉴 카탈로그 -->
+    <div class="mt-4 space-y-6">
+        {% for cat in categories %}
+        <section id="category-{{ cat.id }}" class="scroll-mt-24">
+            <h2 class="text-sm font-extrabold text-gray-800 mb-3 border-l-4 border-blue-600 pl-2">
+                {{ cat.name }}
+            </h2>
+
+            <div class="space-y-3">
+                {% for item in cat.items %}
+                <div class="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:border-blue-300 transition"
+                     hx-get="/items/{{ item.id }}/modal"
+                     hx-target="#modal-container"
+                     hx-swap="innerHTML">
+                    <div class="flex-1 pr-3">
+                        <h3 class="font-bold text-sm text-gray-900">{{ item.name }}</h3>
+                        {% if item.description %}
+                        <p class="text-xs text-gray-500 line-clamp-1 mt-0.5">{{ item.description }}</p>
+                        {% endif %}
+                        <span class="text-sm font-bold text-gray-900 mt-2 block">
+                            {{ "{:,}".format(item.price) }}원
+                        </span>
+                    </div>
+
+                    <div class="flex flex-col items-end">
+                        {% if item.is_sold_out %}
+                        <span class="px-2.5 py-1 text-xs font-bold text-gray-400 bg-gray-100 rounded-md">품절</span>
+                        {% else %}
+                        <button type="button" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold">
+                            담기
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+
+    <!-- 하단 플로팅 장바구니 바 -->
+    <div x-show="totalCount > 0" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-8"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-cloak
+         class="fixed bottom-4 left-0 right-0 max-w-md mx-auto px-4 z-40">
+        <button type="button"
+                @click="showCartModal = true"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-2xl shadow-xl flex justify-between items-center font-bold">
+            <div class="flex items-center space-x-2">
+                <span class="bg-blue-800 text-white text-xs px-2 py-0.5 rounded-full" x-text="totalCount"></span>
+                <span class="text-sm">장바구니 보기</span>
+            </div>
+            <span class="text-base" x-text="totalPrice.toLocaleString() + '원'"></span>
+        </button>
+    </div>
+
+    <!-- 장바구니 확인 및 주문 제출 모달 -->
+    <div x-show="showCartModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div @click.away="showCartModal = false" class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-base text-gray-900">장바구니 확인</h3>
+                <button type="button" @click="showCartModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- 장바구니 아이템 목록 -->
+            <div class="p-4 overflow-y-auto space-y-3 flex-1">
+                <template x-for="(item, idx) in cart" :key="idx">
+                    <div class="flex justify-between items-start border-b pb-3">
+                        <div class="flex-1 pr-2">
+                            <h4 class="font-bold text-sm text-gray-800" x-text="item.itemName"></h4>
+                            <p class="text-xs text-gray-500 mt-0.5" 
+                               x-text="item.options.map(o => o.name).join(', ')"></p>
+                            <span class="text-xs font-semibold text-gray-700 mt-1 block"
+                                  x-text="item.subtotalPrice.toLocaleString() + '원 (수량: ' + item.quantity + ')'"></span>
+                        </div>
+                        <button type="button" @click="removeFromCart(idx)" class="text-gray-400 hover:text-red-500 text-xs px-2 py-1">삭제</button>
+                    </div>
+                </template>
+
+                <!-- 요청 사항 입력란 -->
+                <div class="pt-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">매장/주방 요청 사항</label>
+                    <input type="text" 
+                           x-model="specialInstruction" 
+                           placeholder="예: 오이는 빼주세요 (최대 50자)"
+                           maxlength="50"
+                           class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- 주문하기 최종 제출 버튼 -->
+            <div class="p-4 border-t bg-gray-50">
+                <button type="button" 
+                        @click="submitOrder()" 
+                        :disabled="isSubmitting"
+                        class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg flex justify-between items-center px-5">
+                    <span class="text-sm" x-text="isSubmitting ? '주문 접수 중...' : '총 주문하기'"></span>
+                    <span class="text-base font-extrabold" x-text="totalPrice.toLocaleString() + '원'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

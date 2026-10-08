@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>HTMX Todo</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+  <h1>Todo List</h1>
+
+  <!-- 입력 폼: 추가 후 폼 리셋 -->
+  <form hx-post="/todos" 
+        hx-target="#todo-list" 
+        hx-swap="beforeend" 
+        hx-on::after-request="this.reset()">
+    <input type="text" name="title" placeholder="할 일을 입력하세요" required>
+    <button type="submit">추가</button>
+  </form>
+
+  <!-- 할 일 목록 컨테이너 -->
+  <ul id="todo-list">
+    <!-- 서버에서 렌더링된 초기 항목 또는 fragment 주입 -->
+  </ul>
+</body>
+</html>

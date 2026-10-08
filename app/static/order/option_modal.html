@@ -1,0 +1,83 @@
+<div class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+     x-data="{
+         quantity: 1,
+         basePrice: 14000,
+         spicePrice: 0,
+         extraRice: false,
+         extraCheese: false,
+         get total() {
+             let add = (this.extraRice ? 1500 : 0) + (this.extraCheese ? 2500 : 0);
+             return (this.basePrice + this.spicePrice + add) * this.quantity;
+         }
+     }">
+    
+    <!-- 모달 바디 (하단 둥근 시트) -->
+    <div class="w-full max-w-[480px] bg-white rounded-t-[28px] p-6 max-h-[85vh] overflow-y-auto no-scrollbar flex flex-col justify-between animate-in slide-in-from-bottom duration-200">
+        <div>
+            <!-- 헤더 닫기 핸들러 -->
+            <div class="flex items-center justify-between pb-3">
+                <h3 class="text-xl font-bold text-[#191F28]">특등심 카츠 정식</h3>
+                <button type="button" @click="showModal = false" class="p-2 text-[#8B95A1] hover:text-[#191F28]">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <p class="text-sm text-[#8B95A1] pb-5 border-b border-[#F2F4F6]">원하시는 옵션을 선택해 주세요.</p>
+
+            <form id="option-form" class="space-y-6 pt-5">
+                <!-- 선택형 옵션 (단일 선택 라디오) -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-bold text-[#333D4B]">소스 / 맵기 선택</label>
+                        <span class="text-xs font-semibold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-md">필수</span>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E8EB] has-[:checked]:border-[#3182F6] has-[:checked]:bg-blue-50/30 transition cursor-pointer">
+                            <span class="text-sm font-medium text-[#191F28]">기본 소스 (달콤/담백)</span>
+                            <input type="radio" name="spice_option" value="basic" checked class="w-5 h-5 accent-[#3182F6]" @change="spicePrice = 0">
+                        </label>
+                        <label class="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E8EB] has-[:checked]:border-[#3182F6] has-[:checked]:bg-blue-50/30 transition cursor-pointer">
+                            <span class="text-sm font-medium text-[#191F28]">매콤 소스 (+500원)</span>
+                            <input type="radio" name="spice_option" value="spicy" class="w-5 h-5 accent-[#3182F6]" @change="spicePrice = 500">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 추가형 옵션 (체크박스) -->
+                <div>
+                    <label class="text-sm font-bold text-[#333D4B] block mb-3">추가 선택</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E8EB] has-[:checked]:border-[#3182F6] has-[:checked]:bg-blue-50/30 transition cursor-pointer">
+                            <span class="text-sm font-medium text-[#191F28]">공기밥 추가 (+1,500원)</span>
+                            <input type="checkbox" name="extra_rice" class="w-5 h-5 rounded-md accent-[#3182F6]" x-model="extraRice">
+                        </label>
+                        <label class="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E8EB] has-[:checked]:border-[#3182F6] has-[:checked]:bg-blue-50/30 transition cursor-pointer">
+                            <span class="text-sm font-medium text-[#191F28]">미니 카레 추가 (+2,500원)</span>
+                            <input type="checkbox" name="extra_curry" class="w-5 h-5 rounded-md accent-[#3182F6]" x-model="extraCheese">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 수량 조절 -->
+                <div class="flex items-center justify-between pt-2">
+                    <span class="text-sm font-bold text-[#333D4B]">수량</span>
+                    <div class="flex items-center border border-[#E5E8EB] rounded-xl overflow-hidden bg-white">
+                        <button type="button" @click="if (quantity > 1) quantity--" class="w-10 h-10 flex items-center justify-center text-lg font-bold text-[#6B7684] hover:bg-gray-50">-</button>
+                        <span class="w-10 text-center font-bold text-sm text-[#191F28]" x-text="quantity"></span>
+                        <button type="button" @click="quantity++" class="w-10 h-10 flex items-center justify-center text-lg font-bold text-[#6B7684] hover:bg-gray-50">+</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 하단 담기 버튼 (금액 즉시 계산 반영) -->
+        <div class="pt-6">
+            <button type="button"
+                    class="w-full h-14 bg-[#3182F6] hover:bg-[#2272EB] text-white rounded-2xl flex items-center justify-center gap-2 font-bold text-base shadow-md active:scale-[0.98] transition"
+                    @click="showModal = false; cartCount += quantity; cartTotal += total">
+                <span x-text="total.toLocaleString() + '원'"></span>
+                <span>담기</span>
+            </button>
+        </div>
+    </div>
+</div>

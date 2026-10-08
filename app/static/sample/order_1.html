@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Order</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body{
+        font-family: Pretendard,
+        "Apple SD Gothic Neo",
+        sans-serif;
+    }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">
+                    맛있는 식당
+                </h1>
+                <p class="text-sm text-slate-500">
+                    5번 테이블
+                </p>
+            </div>
+            <div
+                class="bg-blue-50 text-blue-600 px-3 py-2 rounded-2xl text-sm font-semibold">
+                주문가능
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Main -->
+<div class="max-w-7xl mx-auto">
+    <div class="flex">
+        <!-- Category -->
+        <aside class="hidden md:block w-56 min-h-screen border-r border-slate-100 bg-white">
+
+            <div class="p-4">
+
+                <h3 class="font-bold text-slate-900 mb-4">
+                    카테고리
+                </h3>
+
+                <div class="space-y-2">
+
+                    <button
+                        class="w-full text-left px-4 py-3 rounded-2xl bg-blue-50 text-blue-600 font-medium">
+                        메인메뉴
+                    </button>
+
+                    <button
+                        class="w-full text-left px-4 py-3 rounded-2xl hover:bg-slate-100">
+                        사이드
+                    </button>
+
+                    <button
+                        class="w-full text-left px-4 py-3 rounded-2xl hover:bg-slate-100">
+                        음료
+                    </button>
+
+                    <button
+                        class="w-full text-left px-4 py-3 rounded-2xl hover:bg-slate-100">
+                        주류
+                    </button>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+        <!-- Content -->
+        <main class="flex-1 p-4 md:p-8">
+
+            <!-- Mobile Category -->
+            <div class="flex gap-2 overflow-x-auto md:hidden mb-6">
+
+                <button
+                    class="whitespace-nowrap px-4 py-2 bg-blue-600 text-white rounded-full">
+                    메인메뉴
+                </button>
+
+                <button
+                    class="whitespace-nowrap px-4 py-2 bg-white rounded-full border">
+                    사이드
+                </button>
+
+                <button
+                    class="whitespace-nowrap px-4 py-2 bg-white rounded-full border">
+                    음료
+                </button>
+
+            </div>
+
+            <!-- Menu Grid -->
+            <div
+                class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+                <!-- Card -->
+
+                <div
+                    class="bg-white rounded-3xl overflow-hidden border border-slate-100">
+
+                    <img
+                        src="https://placehold.co/600x400"
+                        class="w-full h-56 object-cover">
+
+                    <div class="p-5">
+
+                        <div class="mb-2">
+
+                            <h3
+             비빔냉면
+                            </h3>
+
+                            <p
+                                class="text-sm text-slate-500 mt-1">
+                                매콤하고 시원한 대표 메뉴
+                            </p>
+
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between mt-5">
+
+                            <div>
+
+                                <div
+                                    class="text-2xl font-bold">
+                                    9,000원
+                                </div>
+
+                            </div>
+
+                            <button
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-semibold">
+
+                                담기
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Card -->
+
+                <div
+                    class="bg-white rounded-3xl overflow-hidden border border-slate-100">
+
+                    https://placehold.co/600x400
+
+                    <div class="p-5">
+
+                        <h3 class="text-xl font-bold">
+                            돈까스
+                        </h3>
+
+                        <p
+                            class="text-sm text-slate-500 mt-1">
+                            바삭한 수제 돈까스
+                        </p>
+
+                        <div
+                            class="flex justify-between items-center mt-5">
+
+                            <div
+                                class="text-2xl font-bold">
+                                11,000원
+                            </div>
+
+                            <button
+                                class="bg-blue-600 text-white px-5 py-3 rounded-2xl font-semibold">
+                                담기
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+</div>
+
+<!-- Cart -->
+<div
+    class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200">
+
+    <div
+        class="max-w-4xl mx-auto">
+
+        <button
+            class="w-full bg-blue-600 text-white rounded-3xl px-6 py-4">
+
+            <div
+                class="flex items-center justify-between">
+
+                <div class="text-left">
+
+                    <div class="font-semibold">
+                        장바구니 3개
+                    </div>
+
+                    <div
+                        class="text-blue-100 text-sm">
+                        메뉴 확인하기
+                    </div>
+
+                </div>
+
+                <div
+                    class="text-xl font-bold">
+                    29,000원
+                </div>
+
+            </div>
+
+        </button>
+
+    </div>
+
+</div>
+
+</body>
+</html>

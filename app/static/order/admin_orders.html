@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>매장 관리자 콘솔 | QuickOrder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <style>
+        body { font-family: "Pretendard", sans-serif; }
+    </style>
+</head>
+<body class="bg-[#F9FAFB] text-[#191F28] antialiased">
+    
+    <div class="min-h-screen flex">
+        <!-- 좌측 사이드바 네비게이션 -->
+        <aside class="w-64 bg-white border-r border-[#F2F4F6] p-6 flex flex-col justify-between hidden md:flex">
+            <div>
+                <div class="flex items-center gap-2 mb-8">
+                    <div class="w-8 h-8 rounded-xl bg-[#3182F6] flex items-center justify-center text-white font-black text-lg">Q</div>
+                    <span class="font-bold text-lg tracking-tight">QuickOrder</span>
+                </div>
+                <nav class="space-y-1.5">
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-[#3182F6] font-bold text-sm">실시간 주문 관리</a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">메뉴 / 옵션 관리</a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">테이블 / QR 코드</a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">매출 통계</a>
+                </nav>
+            </div>
+            <div class="p-3 bg-[#F2F4F6] rounded-xl text-xs text-[#8B95A1]">
+                을지로 카츠 본점<br>
+                <span class="font-bold text-[#4E5968]">라이선스: D-28</span>
+            </div>
+        </aside>
+
+        <!-- 메인 대시보드 바디 -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <header class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight text-[#191F28]">실시간 주문 관리</h2>
+                    <p class="text-sm text-[#8B95A1] mt-1">실시간으로 접수된 주문을 확인하고 주방으로 전송하세요.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-sm font-semibold text-[#4E5968] shadow-sm">영업 일시중지</button>
+                    <button class="px-4 py-2.5 bg-[#3182F6] rounded-xl text-sm font-bold text-white shadow-sm hover:bg-[#2272EB]">테이블 QR 인쇄</button>
+                </div>
+            </header>
+
+            <!-- 주문 목록 카드 테이블 -->
+            <div class="bg-white rounded-3xl border border-[#F2F4F6] shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-[#F2F4F6] flex justify-between items-center">
+                    <h3 class="font-bold text-base text-[#191F28]">신규 접수 대기 내역</h3>
+                    <span class="text-xs font-bold text-[#3182F6] bg-blue-50 px-2.5 py-1 rounded-full">자동 갱신 중</span>
+                </div>
+
+                <div class="divide-y divide-[#F2F4F6]" id="admin-order-list">
+                    
+                    <!-- 주문 로우 (Row) -->
+                    <div class="p-6 flex items-center justify-between hover:bg-[#F9FAFB] transition" id="order-row-101">
+                        <div class="flex items-center gap-5">
+                            <span class="w-14 h-14 rounded-2xl bg-[#F2F4F6] flex items-center justify-center font-black text-lg text-[#191F28]">
+                                T05
+                            </span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-base text-[#191F28]">특등심 카츠 정식 외 1건</span>
+                                    <span class="text-xs font-semibold text-[#8B95A1]">12:48 접수</span>
+                                </div>
+                                <p class="text-xs text-[#6B7684] mt-1">특등심 카츠 정식 (매콤 소스, 공기밥 추가) 1, 콜라 2</p>
+                                <span class="text-xs text-[#E84057] font-semibold block mt-0.5">요청: 양배추 샐러드 드레싱 많이 부탁드립니다.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <span class="text-base font-bold text-[#191F28]">18,000원</span>
+                            <div class="flex gap-2">
+                                <button class="px-4 py-2.5 rounded-xl bg-[#F2F4F6] hover:bg-[#E5E8EB] text-[#4E5968] font-bold text-sm transition"
+                                        hx-post="/orders/101/cancel"
+                                        hx-target="#order-row-101"
+                                        hx-swap="delete">
+                                    거절
+                                </button>
+                                <button class="px-5 py-2.5 rounded-xl bg-[#3182F6] hover:bg-[#2272EB] text-white font-bold text-sm shadow-sm transition"
+                                        hx-post="/orders/101/confirm"
+                                        hx-target="#order-row-101"
+                                        hx-swap="outerHTML">
+                                    주문 확정
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
