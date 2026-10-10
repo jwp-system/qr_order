@@ -1,38 +1,8 @@
 <!-- app/templates/client/fragments/option_modal.html -->
-<div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-     x-data="{
-        basePrice: {{ item.price }},
-        quantity: 1,
-        selectedOptions: [],
-        
-        calcItemTotal() {
-            let optionsSum = this.selectedOptions.reduce((acc, opt) => acc + opt.price, 0);
-            return (this.basePrice + optionsSum) * this.quantity;
-        },
-        addToCartAndClose() {
-            // 필수 옵션 검증 체크
-            {% for group in item.option_groups if group.is_required %}
-            if (!this.selectedOptions.some(opt => opt.groupId === {{ group.id }})) {
-                alert('\'{{ group.name }}\' 옵션을 반드시 선택해 주세요.');
-                return;
-            }
-            {% endfor %}
-
-            // 부모 Alpine 장바구니에 항목 추가
-            $dispatch('add-to-cart', {
-                itemId: {{ item.id }},
-                itemName: '{{ item.name }}',
-                basePrice: this.basePrice,
-                quantity: this.quantity,
-                subtotalPrice: this.calcItemTotal(),
-                options: this.selectedOptions.map(o => ({ name: o.name, additional_price: o.price }))
-            });
-
-            // 모달 DOM 닫기
-            document.getElementById('modal-container').innerHTML = '';
-        }
-     }">
-
+<div
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+     x-data='optionData({{ option_data | tojson | safe }})'
+>
     <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col overflow-hidden animate-slide-up shadow-2xl">
         <!-- 모달 헤더 -->
         <div class="p-4 border-b flex justify-between items-center bg-gray-50">

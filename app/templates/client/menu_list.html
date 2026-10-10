@@ -16,7 +16,8 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-[#F9FAFB] text-[#191F28] antialiased selection:bg-blue-100" 
+<body class="bg-[#F9FAFB] text-[#191F28] antialiased selection:bg-blue-100"
+      @add-to-cart.window="addToCart($event.detail)"
       x-data="cartData()">
 
     <!-- 모바일 컨테이너 (최대 480px 중앙 정렬) -->
@@ -67,7 +68,7 @@
                 :class="'{{item.is_sold_out}}' == 'True' ? 'bg-[#FAFAFA] border border-[#EEEEEE] opacity-60 cursor-not-allowed' 
                                             : 'bg-white border border-[#F2F4F6] shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-[0.98] transition cursor-pointer'"
                 x-show="currentCategory == '0' || currentCategory == '{{ cat.id }}'"
-                hx-get="/items/1/modal" 
+                hx-get="/items/{{ item.id }}/modal" 
                 hx-target="#modal-container" 
                 @click="showModal = true">
                 <div class="flex-1 pr-3">
@@ -89,8 +90,71 @@
             {% endfor %}
         </main>
 
+    <!-- 하단 플로팅 장바구니 바 -->
+    <div x-show="cartCount > 0" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-8"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-cloak
+         class="fixed bottom-4 left-0 right-0 max-w-md mx-auto px-4 z-40">
+        <button type="button"
+                @click="showCartModal = true"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-2xl shadow-xl flex justify-between items-center font-bold">
+            <div class="flex items-center space-x-2">
+                <span class="bg-blue-800 text-white text-xs px-2 py-0.5 rounded-full" x-text="cartCount"></span>
+                <span class="text-sm">장바구니 보기</span>
+            </div>
+            <span class="text-base" x-text="cartTotal.toLocaleString() + '원'"></span>
+        </button>
+    </div>
+    <!-- 장바구니 확인 및 주문 제출 모달 -->
+    <div x-show="showCartModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div @click.away="showCartModal = false" class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-base text-gray-900">장바구니 확인</h3>
+                <button type="button" @click="showCartModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- 장바구니 아이템 목록 -->
+            <div class="p-4 overflow-y-auto space-y-3 flex-1">
+                <template x-for="(item, idx) in cartItems" :key="idx">
+                    <div class="flex justify-between items-start border-b pb-3">
+                        <div class="flex-1 pr-2">
+                            <h4 class="font-bold text-sm text-gray-800" x-text="item.itemName"></h4>
+                            <p class="text-xs text-gray-500 mt-0.5" 
+                               x-text="item.options.map(o => o.name).join(', ')"></p>
+                            <span class="text-xs font-semibold text-gray-700 mt-1 block"
+                                  x-text="item.subtotalPrice.toLocaleString() + '원 (수량: ' + item.quantity + ')'"></span>
+                        </div>
+                        <button type="button" @click="removeFromCart(item.itemId)" class="text-gray-400 hover:text-red-500 text-xs px-2 py-1">삭제</button>
+                    </div>
+                </template>
+
+                <!-- 요청 사항 입력란 -->
+                <div class="pt-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">매장/주방 요청 사항</label>
+                    <input type="text" 
+                           x-model="specialInstruction" 
+                           placeholder="예: 오이는 빼주세요 (최대 50자)"
+                           maxlength="50"
+                           class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- 주문하기 최종 제출 버튼 -->
+            <div class="p-4 border-t bg-gray-50">
+                <button type="button" 
+                        @click="submitOrder()" 
+                        :disabled="isSubmitting"
+                        class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg flex justify-between items-center px-5">
+                    <span class="text-sm" x-text="isSubmitting ? '주문 접수 중...' : '총 주문하기'"></span>
+                    <span class="text-base font-extrabold" x-text="cartTotal.toLocaleString() + '원'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
         <!-- 토스 스타일 하단 플로팅 장바구니 바 -->
-        <div class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto p-4 bg-gradient-to-t from-white via-white to-white/0 z-30 pointer-events-none">
+        <!-- <div class="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto p-4 bg-gradient-to-t from-white via-white to-white/0 z-30 pointer-events-none">
             <button class="pointer-events-auto w-full h-14 bg-[#3182F6] hover:bg-[#2272EB] text-white rounded-2xl px-5 flex items-center justify-between font-bold text-base shadow-lg shadow-blue-500/25 active:scale-[0.98] transition"
                     hx-get="/static/order/option_modal.html"
                     hx-target="#modal-container"
@@ -103,7 +167,7 @@
                     <span x-text="cartTotal.toLocaleString() + '원'"></span>
                 </div>
             </button>
-        </div>
+        </div> -->
 
         <!-- 옵션 선택 및 주문 모달이 바인딩될 컨테이너 -->
         <div id="modal-container"></div>
@@ -114,22 +178,30 @@ function cartData() {
         cartCount: 0,
         cartTotal: 0,
         showModal: false,
+        showCartModal: false,
+        isSubmitting: false,
         currentCategory: '0', //전체 카테고리
         cartItems: [],
+        specialInstruction: '',
+        
         addToCart(item) {
-            const existingItem = this.cartItems.find(cartItem => cartItem.id === item.id);
+            console.log('Adding to cart:', item);
+            const existingItem = this.cartItems.find(cartItem => cartItem.itemId === item.itemId);
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
                 this.cartItems.push({ ...item, quantity: 1 });
             }
+            this.updateCartTotals();
         },
         removeFromCart(itemId) {
-            this.cartItems = this.cartItems.filter(item => item.id !== itemId);
+            this.cartItems = this.cartItems.filter(item => item.itemId !== itemId);
+            this.updateCartTotals();
         },
         updateCartTotals() {
+            console.log('Updating cart totals. Current items:', this.cartItems);
             this.cartCount = this.cartItems.reduce((sum, item) => sum + item.quantity, 0);
-            this.cartTotal = this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            this.cartTotal = this.cartItems.reduce((sum, item) => sum + (item.subtotalPrice * item.quantity), 0);
         },
         setCategory(category) {
             this.currentCategory = category;
@@ -138,7 +210,43 @@ function cartData() {
         },
     }
 }
-
+function optionData(data) {
+    console.log('optionData initialized with item:', data);
+    return {
+        optionGroups: data.option_groups,
+        basePrice: data.basePrice,
+        quantity: 1,
+        selectedOptions: [],
+        calcItemTotal() {
+            let optionsSum = this.selectedOptions.reduce((acc, opt) => acc + opt.price, 0);
+            return (this.basePrice + optionsSum) * this.quantity;
+        },
+        addToCartAndClose() {
+            // 필수 옵션 검증 체크
+            console.log('addToCartAnd Close',this.selectedOptions);
+            for (let group of this.optionGroups) {
+                if (group.isRequired) {
+                    const hasSelected = this.selectedOptions.some(opt => opt.groupId === group.groupId);
+                    if (!hasSelected) {
+                        alert(`필수 옵션 "${group.groupName}"을 선택해주세요.`);
+                        return;
+                    }
+                }
+            }
+            // 부모 Alpine 장바구니에 항목 추가
+            this.$dispatch('add-to-cart', {
+                itemId: data.itemId,
+                itemName: data.itemName,
+                basePrice: this.basePrice,
+                quantity: this.quantity,
+                subtotalPrice: this.calcItemTotal(),
+                options: this.selectedOptions.map(o => ({ name: o.name, additional_price: o.price }))
+            });
+            // 모달 DOM 닫기
+            document.getElementById('modal-container').innerHTML = '';
+        }
+    }
+}
 </script>
 </body>
 </html>

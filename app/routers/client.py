@@ -102,12 +102,24 @@ async def get_item_option_modal(
 
     if not item:
         raise HTTPException(status_code=404, detail="해당 메뉴를 찾을 수 없습니다.")
-
+    # 옵션 처리용 데이터 JSON 직렬화하여 템플릿 전달
+    option_data ={
+        "itemId": item.id,
+        "itemName": item.name,
+        "basePrice": item.price,
+        "option_groups": [{
+            "groupId": group.id,
+            "groupName": group.name if group.name else "",
+            "isRequired": group.is_required
+        } for group in item.option_groups],
+    }
     return templates.TemplateResponse(
+        request=request,
+        name=
         "client/fragments/option_modal.html",
-        {
-            "request": request,
-            "item": item
+        context={
+            "item": item,
+            "option_data": option_data
         }
     )
 

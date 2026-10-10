@@ -69,7 +69,11 @@ class Category(Base, TimestampMixin):
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     store: Mapped["Store"] = relationship(back_populates="categories")
-    items: Mapped[List["Item"]] = relationship(back_populates="category", cascade="all, delete-orphan")
+    items: Mapped[List["Item"]] = relationship(
+        back_populates="category", 
+        cascade="all, delete-orphan",
+        order_by="Item.display_order.asc(), Item.name.asc()"
+    )
 
 class Item(Base, TimestampMixin):
     __tablename__ = "items"
