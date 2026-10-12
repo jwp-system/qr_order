@@ -1,0 +1,46 @@
+    <!-- 장바구니 확인 및 주문 제출 모달 -->
+    <div x-show="showCartModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div @click.away="showCartModal = false" class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-base text-gray-900">장바구니 확인</h3>
+                <button type="button" @click="showCartModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- 장바구니 아이템 목록 -->
+            <div class="p-4 overflow-y-auto space-y-3 flex-1">
+                <template x-for="(item, idx) in cartItems" :key="idx">
+                    <div class="flex justify-between items-start border-b pb-3">
+                        <div class="flex-1 pr-2">
+                            <h4 class="font-bold text-sm text-gray-800" x-text="item.itemName"></h4>
+                            <p class="text-xs text-gray-500 mt-0.5" 
+                               x-text="item.options.map(o => o.name).join(', ')"></p>
+                            <span class="text-xs font-semibold text-gray-700 mt-1 block"
+                                  x-text="item.subtotalPrice.toLocaleString() + '원 (수량: ' + item.quantity + ')'"></span>
+                        </div>
+                        <button type="button" @click="removeFromCart(item.itemId)" class="text-gray-400 hover:text-red-500 text-xs px-2 py-1">삭제</button>
+                    </div>
+                </template>
+
+                <!-- 요청 사항 입력란 -->
+                <div class="pt-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">매장/주방 요청 사항</label>
+                    <input type="text" 
+                           x-model="specialInstruction" 
+                           placeholder="예: 오이는 빼주세요 (최대 50자)"
+                           maxlength="50"
+                           class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- 주문하기 최종 제출 버튼 -->
+            <div class="p-4 border-t bg-gray-50">
+                <button type="button" 
+                        @click="submitOrder()" 
+                        :disabled="isSubmitting"
+                        class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg flex justify-between items-center px-5">
+                    <span class="text-sm" x-text="isSubmitting ? '주문 접수 중...' : '총 주문하기'"></span>
+                    <span class="text-base font-extrabold" x-text="cartTotal.toLocaleString() + '원'"></span>
+                </button>
+            </div>
+        </div>
+    </div>

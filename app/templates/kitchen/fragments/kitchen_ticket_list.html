@@ -1,0 +1,10 @@
+<!-- app/templates/kitchen/fragments/kitchen_ticket_list.html -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+    {% for order in orders %}
+        {% include "kitchen/fragments/kitchen_ticket.html" %}
+    {% else %}
+        <div class="col-span-full py-24 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="text-base font-bold text-gray-500">현재 조리 대기 중인 주문이 없습니다.</p>
+        </div>
+    {% endfor %}
+</div>

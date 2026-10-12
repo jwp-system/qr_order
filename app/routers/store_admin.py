@@ -15,7 +15,9 @@ from app.database.models import Store, Order, OrderItem, OrderItemOption, OrderS
 router = APIRouter(prefix="/admin", tags=["Store Admin"])
 templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
-
+# ==============================================================================
+# Helper / Service Functions (중복 코드 분리)
+# ==============================================================================
 async def get_active_orders(db: AsyncSession, store_id: int):
     """현재 진행 중인 주문 목록 조회 (테이블, 아이템, 옵션 Eager Loading)"""
     stmt = (
@@ -39,6 +41,29 @@ async def get_active_orders(db: AsyncSession, store_id: int):
     result = await db.execute(stmt)
     return result.scalars().all()
 
+
+async def get_order_with_id(db: AsyncSession, order_id: int) -> Order:
+    """주문과 관련된 정보를 함께 로드하는 공통 함수"""
+    stmt = (
+        select(Order)
+        .options(
+            selectinload(Order.table),
+            selectinload(Order.items).selectinload(OrderItem.options)
+        )
+        .where(Order.id == order_id)
+    )
+    res = await db.execute(stmt)
+    order = res.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+
+    return order
+
+
+# ==============================================================================
+# Router Handlers
+# ==============================================================================
 
 @router.get("/orders", response_class=HTMLResponse)
 async def admin_orders_page(
@@ -92,20 +117,7 @@ async def accept_order(
     db: AsyncSession = Depends(get_db)
 ):
     """주문 확정: ORDERED -> ACCEPTED (주방 전달 상태)"""
-    stmt = (
-        select(Order)
-        .options(
-            selectinload(Order.table),
-            selectinload(Order.items).selectinload(OrderItem.options)
-        )
-        .where(Order.id == order_id)
-    )
-    res = await db.execute(stmt)
-    order = res.scalar_one_or_none()
-
-    if not order:
-        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
-
+    order = await get_order_with_id(db, order_id)
     order.status = OrderStatus.ACCEPTED
     await db.commit()
     await db.refresh(order)
@@ -128,20 +140,7 @@ async def cancel_order(
     db: AsyncSession = Depends(get_db)
 ):
     """주문 취소/반려: -> CANCELLED"""
-    stmt = (
-        select(Order)
-        .options(
-            selectinload(Order.table),
-            selectinload(Order.items).selectinload(OrderItem.options)
-        )
-        .where(Order.id == order_id)
-    )
-    res = await db.execute(stmt)
-    order = res.scalar_one_or_none()
-
-    if not order:
-        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
-
+    order = await get_order_with_id(db, order_id)
     order.status = OrderStatus.CANCELLED
     await db.commit()
     await db.refresh(order)

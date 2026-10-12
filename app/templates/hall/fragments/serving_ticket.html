@@ -1,0 +1,35 @@
+<!-- app/templates/hall/fragments/serving_ticket.html -->
+<div id="hall-ticket-{{ order.id }}" 
+     class="bg-white rounded-2xl border-2 border-emerald-500 shadow-md p-5 flex flex-col justify-between transition">
+    <div>
+        <div class="flex justify-between items-center border-b border-gray-100 pb-3 mb-3">
+            <span class="text-2xl font-black text-emerald-700">테이블 {{ order.table.table_number }}</span>
+            <span class="text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">조리 완료</span>
+        </div>
+
+        <!-- 메뉴 확인 -->
+        <div class="space-y-2 mb-4">
+            {% for item in order.items %}
+            <div class="flex justify-between items-center text-sm font-bold text-gray-800">
+                <span>{{ item.item_name }}</span>
+                <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{{ item.quantity }}개</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if order.special_instruction %}
+        <div class="bg-gray-50 p-2.5 rounded-xl text-xs text-gray-600 mb-3">
+            <span class="font-bold text-gray-800">요청사항:</span> {{ order.special_instruction }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 원터치 서빙 완료 버튼 -->
+    <button type="button"
+            hx-post="/hall/orders/{{ order.id }}/serve"
+            hx-target="#hall-ticket-{{ order.id }}"
+            hx-swap="outerHTML"
+            class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-sm rounded-xl shadow transition">
+        서빙 완료
+    </button>
+</div>

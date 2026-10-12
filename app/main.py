@@ -66,7 +66,7 @@ async def health_check():
 # app.include_router(hall.router, prefix="/hall", tags=["Hall Serving"])
 
 # 클라이언트 주문 라우터 마운트
-from app.routers import client
+from app.routers import client, kitchen
 app.include_router(client.router, prefix="", tags=["Client Order"])
 
 # 매장 관리자 라우터 마운트
@@ -76,3 +76,11 @@ app.include_router(store_admin.router, tags=["Store Admin"])
 # 슈퍼 관리자 라우터 마운트
 from app.routers import super_admin
 app.include_router(super_admin.router, tags=["Super Admin"])
+
+# 주방 관리자 라우터 마운트
+from app.routers import kitchen
+app.include_router(kitchen.router, tags=["Kitchen KDS"])
+
+# 홀 서빙 라우터 마운트
+from app.routers import hall
+app.include_router(hall.router, tags=["Hall Serving"])

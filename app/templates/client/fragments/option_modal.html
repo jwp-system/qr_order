@@ -91,4 +91,41 @@
             </button>
         </div>
     </div>
+    <!-- 필수 항목 체크 확인 모달 -->
+    <div x-show="showAlert" 
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-90"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-90"
+        x-cloak
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl text-center">
+            <!-- 경고 아이콘 -->
+            <div class="w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+                !
+            </div>
+            
+            <!-- 타이틀 -->
+            <h3 class="text-lg font-bold text-gray-900 mb-3">필수 옵션 선택 안내</h3>
+            
+            <!-- 강조 영역 -->
+            <div class="my-4">
+                <span class="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-base font-extrabold px-3.5 py-1.5 rounded-xl shadow-xs" 
+                    x-text="selectedRequiredGroupName">
+                </span>
+            </div>
+
+            <p class="text-sm font-semibold text-gray-600 mb-6 leading-relaxed">
+                항목을 반드시 선택해 주세요.
+            </p>
+
+            <!-- 확인 버튼 -->
+            <button @click="showAlert = false"
+                    class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 rounded-xl transition shadow-md">
+                확인
+            </button>
+        </div>
+    </div>
 </div>
