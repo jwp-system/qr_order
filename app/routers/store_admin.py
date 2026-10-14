@@ -18,8 +18,27 @@ templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 # ==============================================================================
 # Helper / Service Functions (중복 코드 분리)
 # ==============================================================================
-async def get_active_orders(db: AsyncSession, store_id: int):
+async def get_orders(db: AsyncSession, store_id: int, order_step: int = -1):
     """현재 진행 중인 주문 목록 조회 (테이블, 아이템, 옵션 Eager Loading)"""
+    """주문 접수 -> 조리 대기 -> 조리 중 -> 서빙 준비-> 서빙 완료"""
+    order_status = [
+                OrderStatus.ORDERED,
+                OrderStatus.ACCEPTED,
+                OrderStatus.COOKING,
+                OrderStatus.COOKED,
+                OrderStatus.SERVED
+    ]
+    if order_step == 1:
+        order_status = [OrderStatus.ORDERED]
+    elif order_step == 2:
+        order_status = [OrderStatus.ACCEPTED]
+    elif order_status == 3:
+        order_status = [OrderStatus.COOKING]
+    elif order_status == 4:
+        order_status = [OrderStatus.COOKED]
+    elif order_status == 5:
+        order_status = [OrderStatus.SERVED]
+        # order_status.append(OrderStatus.COMPLETED)  # 완료 주문은 보드에서 제외
     stmt = (
         select(Order)
         .options(
@@ -28,13 +47,7 @@ async def get_active_orders(db: AsyncSession, store_id: int):
         )
         .where(
             Order.store_id == store_id,
-            Order.status.in_([
-                OrderStatus.ORDERED,
-                OrderStatus.ACCEPTED,
-                OrderStatus.COOKING,
-                OrderStatus.COOKED,
-                OrderStatus.SERVED
-            ])
+            Order.status.in_(order_status)
         )
         .order_by(Order.created_at.desc())
     )
@@ -77,8 +90,8 @@ async def admin_orders_page(
     store = store_res.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없습니다.")
-
-    orders = await get_active_orders(db, store_id)
+    ## 전체 주문
+    orders = await get_orders(db, store_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -95,10 +108,11 @@ async def admin_orders_page(
 async def admin_orders_feed(
     request: Request,
     store_id: int = 1,
+    order_step: int = -1,
     db: AsyncSession = Depends(get_db)
 ):
-    """HTMX 폴링(hx-trigger='every 3s')으로 주문 목록 영역만 동적 갱신"""
-    orders = await get_active_orders(db, store_id)
+    """HTMX 폴링(hx-trigger='every 10s')으로 주문 목록 영역만 동적 갱신"""
+    orders = await get_orders(db, store_id, order_step)
     return templates.TemplateResponse(
         request=request,
         name=

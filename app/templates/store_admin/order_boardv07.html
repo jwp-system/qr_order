@@ -1,0 +1,215 @@
+{% extends "border.html" %}
+
+{% block title %}주문 현황 | QR Order{% endblock %}
+
+<!-- 1. 좌측 사이드바 -->
+{% block side %}
+    <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-[#EEF0F2] shrink-0 select-none">
+        <div class="px-7 py-7">
+            <!-- 로고 -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-toss-blue flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-toss-blue/25">
+                    Q
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-toss-dark">
+                    QR Order
+                </h1>
+            </div>
+
+            <!-- 현재 매장 표시 -->
+            <div class="mt-6 flex items-center justify-between p-3.5 bg-[#F9FAFB] rounded-2xl border border-[#F2F4F6]">
+                <div>
+                    <p class="text-[11px] text-toss-gray font-medium">현재 매장</p>
+                    <p class="text-sm font-bold text-toss-dark mt-0.5">{{ store.name }}</p>
+                </div>
+                <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></span>
+            </div>
+        </div>
+
+        <!-- 메뉴 목록 -->
+        <nav class="flex-1 px-4 space-y-1.5">
+            <a href="/admin/orders" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-toss-lightBlue text-toss-blue font-bold text-sm transition-all">
+                <svg class="w-5 h-5 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                주문 관리
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-toss-gray hover:text-toss-dark hover:bg-toss-lightGray/60 font-semibold text-sm transition-all">
+                <svg class="w-5 h-5 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                통계 분석
+            </a>
+        </nav>
+    </aside>
+{% endblock %}
+<!-- 2. 메인 탑 헤더 -->
+{% block top %}
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 px-10 py-6 border-b border-[#EEF0F2] flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-black tracking-tight text-toss-dark">
+                주문 현황
+            </h2>
+            <p id="header-status-msg" class="text-sm text-toss-gray mt-1 font-medium">
+                신규 주문이 접수 되면 접수카드에 숫자가 표시됩니다.
+            </p>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <button hx-get="/admin/orders/feed"
+                    hx-target="#order-list-container"
+                    hx-swap="innerHTML"
+                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-toss-lightBlue hover:bg-blue-100 text-toss-blue font-bold text-xs transition active:scale-95 shadow-sm">
+                <span>🔄 새로고침</span>
+            </button>
+
+            <!-- <div class="flex items-center gap-2 text-sm font-medium text-toss-gray">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                실시간 알림 켜짐
+            </div> -->
+        </div>
+    </header>
+{% endblock %}
+<!-- 3. 메인 본문 그리드 -->
+{% block main %}
+    <div class="p-10 max-w-[1400px] w-full space-y-7">
+
+        <!-- 3. KPI 카운트 카드 (5개 열) -->
+        <section id="board-card" class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <!-- 전체 접수 -->
+            <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <span class="text-xs font-bold text-toss-gray">전체</span>
+                <div class="text-3xl font-black text-toss-dark mt-3 tracking-tight">
+                    <input type="text"  readonly card-status="all"
+                        value="{{ orders | length }}건" 
+                        class="all w-full py-1 font-semibold bg-transparent border-none outline-none focus:ring-0"/>
+                </div>
+            </div>
+
+            <!-- 매장관리자 -->
+            <div class="bg-white rounded-3xl p-6 border-2 border-toss-blue/40 shadow-[0_2px_10px_rgba(49,130,246,0.06)]">
+                <span class="text-xs font-bold text-toss-blue">접수</span>
+                <div class="text-3xl font-black text-toss-blue mt-3 tracking-tight">
+                    <input type="text"  readonly card-status="manager"
+                        value="{{ orders | selectattr('status', 'in', ['ORDERED']) | list | length }}건" 
+                        class="manager w-full py-1 font-semibold bg-transparent border-none outline-none focus:ring-0"/>
+                </div>
+            </div>
+
+            <!-- 주방 -->
+            <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <span class="text-xs font-bold text-toss-orange">주방</span>
+                <div class="text-3xl font-black text-toss-orange mt-3 tracking-tight">
+                    <input type="text"  readonly card-status="kitchen"
+                        value="{{ orders | selectattr('status', 'in', ['ACCEPTED', 'COOKING']) | list | length }}건" 
+                        class="kitchen w-full py-1 font-semibold bg-transparent border-none outline-none focus:ring-0"/>
+                </div>
+            </div>
+
+            <!-- 홀 -->
+            <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <span class="text-xs font-bold text-toss-green">서빙</span>
+                <div class="text-3xl font-black text-toss-green mt-3 tracking-tight">
+                    <input type="text"  readonly card-status="hall"
+                        value="{{ orders | selectattr('status', 'in', ['COOKED']) | list | length }}건" 
+                        class="hall w-full py-1 font-semibold bg-transparent border-none outline-none focus:ring-0"/>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 세그먼트 필터 탭 -->
+        <section class="flex items-center">
+            <div class="inline-flex p-1.5 bg-[#EEF0F3] rounded-2xl gap-1">
+                <button class="filter-btn px-4 py-2 rounded-xl font-bold text-sm bg-white text-toss-dark shadow-sm flex items-center gap-1.5"
+                        onclick="filterList('ALL', this)">
+                    전체 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGray text-toss-gray font-bold">{{ orders | length }}</span>
+                </button>
+                <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                        onclick="filterList('ORDERED', this)">
+                    대기 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightBlue text-toss-blue font-bold">{{ orders | selectattr('status', 'equalto', 'ORDERED') | list | length }}</span>
+                </button>
+                <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                        onclick="filterList('ACCEPTED', this)">
+                    접수 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightOrange text-toss-orange font-bold">{{ orders | selectattr('status', 'in', ['ACCEPTED']) | list | length }}</span>
+                </button>
+                <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                        onclick="filterList('COOKING', this)">
+                    조리 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightOrange text-toss-orange font-bold">{{ orders | selectattr('status', 'in', ['COOKING']) | list | length }}</span>
+                </button>
+                <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                        onclick="filterList('COOKED', this)">
+                    서빙 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGreen text-toss-green font-bold">{{ orders | selectattr('status', 'in', ['COOKED']) | list | length }}</span>
+                </button>
+                <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                        onclick="filterList('SERVED', this)">
+                    완료 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGreen text-toss-green font-bold">{{ orders | selectattr('status', 'in', ['SERVED']) | list | length }}</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 5. 주문 카드 목록 (HTMX 10초 자동 폴링 지원) -->
+        <section class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4"
+                    id="order-list-container"
+                    hx-get="/admin/orders/feed"
+                    hx-trigger="every 10s"
+                    hx-swap="innerHTML"
+                    hx-on::after-swap="updateCount()">
+            {% include "store_admin/fragments/order_list.html" %}
+        </section>
+
+    </div>
+{% endblock %}
+{% block scripts %}
+<script>
+    let currentStep = "ALL";
+    function filterList(filterType, btnEl) {
+        currentStep = filterType;
+        console.log(currentStep);
+        // 탭 스타일 전환
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.className = 'filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition';
+        });
+        btnEl.className = 'filter-btn px-4 py-2 rounded-xl font-bold text-sm bg-white text-toss-dark shadow-sm flex items-center gap-1.5';
+        filterCards();
+    }
+
+    function filterCards(){
+        console.log(currentStep);
+        // 카드 필터링
+        const cards = document.querySelectorAll('.order-card');
+        cards.forEach(card => {
+            // const status = card.getAttribute('data-status');
+            const status = card.dataset.status;
+            if (currentStep === 'ALL' || currentStep === status) {
+                // card.style.display = 'flex';
+                card.classList.remove('hidden');
+            } else {
+                // card.style.display = 'none';
+                card.classList.add('hidden');
+            }
+        });
+    }
+
+    function updateCount(){
+        // 1. 카운터 처리, 2. 필터
+        const card_info = {
+            "manager" : ['ORDERED'],
+            "kitchen" : ['ACCEPTED', 'COOKING'],
+            "hall" : ['COOKED'],
+        };
+        const boardCard = document.getElementById("board-card");
+        const inputs = boardCard.querySelectorAll("input");
+        const orderCards = document.querySelectorAll('.order-card');
+        inputs.forEach(e => {
+            const cardStatus = e.getAttribute('card-status');
+            if(cardStatus === "all") e.value = orderCards.length + '건';
+            else{
+                const orderStatus = card_info[cardStatus];
+                e.value = [...orderCards].filter(card => orderStatus.includes(card.dataset.status)).length + '건';
+            }
+        })
+        // 카드 필터링
+        filterCards()
+    }
+</script>
+{% endblock %}

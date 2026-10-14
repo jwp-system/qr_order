@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 현황 | QR Order</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toss: {
+                            blue: '#3182F6',
+                            hoverBlue: '#1B64DA',
+                            lightBlue: '#E8F3FF',
+                            dark: '#191F28',
+                            gray: '#8B95A1',
+                            lightGray: '#F2F4F6',
+                            border: '#E5E8EB',
+                            bg: '#F9FAFB',
+                            red: '#F04452',
+                            lightRed: '#FEECEE',
+                            orange: '#FF8800',
+                            lightOrange: '#FFF3E5',
+                            green: '#04B066',
+                            lightGreen: '#E6F8F0'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-[#F8F9FA] text-toss-dark font-sans antialiased min-h-screen">
+
+<div class="flex min-h-screen">
+
+    <!-- 1. 좌측 사이드바 -->
+    <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-[#EEF0F2] shrink-0 select-none">
+        <div class="px-7 py-7">
+            <!-- 로고 -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-toss-blue flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-toss-blue/25">
+                    Q
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-toss-dark">
+                    QR Order
+                </h1>
+            </div>
+
+            <!-- 현재 매장 표시 -->
+            <div class="mt-6 flex items-center justify-between p-3.5 bg-[#F9FAFB] rounded-2xl border border-[#F2F4F6]">
+                <div>
+                    <p class="text-[11px] text-toss-gray font-medium">현재 매장</p>
+                    <p class="text-sm font-bold text-toss-dark mt-0.5">{{ store.name }}</p>
+                </div>
+                <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></span>
+            </div>
+        </div>
+
+        <!-- 메뉴 목록 -->
+        <nav class="flex-1 px-4 space-y-1.5">
+            <a href="/admin/orders" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-toss-lightBlue text-toss-blue font-bold text-sm transition-all">
+                <svg class="w-5 h-5 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                주문 관리
+                <span id="sidebar-order-badge" class="ml-auto bg-toss-blue text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {{ orders | selectattr('status', 'in', ['ORDERED', 'ACCEPTED']) | list | length }}
+                </span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-toss-gray hover:text-toss-dark hover:bg-toss-lightGray/60 font-semibold text-sm transition-all">
+                <svg class="w-5 h-5 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                통계 분석
+            </a>
+        </nav>
+    </aside>
+
+    <!-- 2. 메인 컨텐츠 영역 -->
+    <main class="flex-1 flex flex-col min-w-0">
+
+        <!-- 탑 헤더 -->
+        <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 px-10 py-6 border-b border-[#EEF0F2] flex items-center justify-between">
+            <div>
+                <h2 class="text-2xl font-black tracking-tight text-toss-dark">
+                    주문 현황
+                </h2>
+                <p id="header-status-msg" class="text-sm text-toss-gray mt-1 font-medium">
+                    신규 주문이 {{ orders | selectattr('status', 'equalto', 'ORDERED') | list | length }}건 대기 중입니다.
+                </p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button hx-get="/admin/orders/feed"
+                        hx-target="#order-list-container"
+                        hx-swap="innerHTML"
+                        class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-toss-lightBlue hover:bg-blue-100 text-toss-blue font-bold text-xs transition active:scale-95 shadow-sm">
+                    <span>🔄 자동 새로고침</span>
+                </button>
+
+                <div class="flex items-center gap-2 text-sm font-medium text-toss-gray">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    실시간 알림 켜짐
+                </div>
+            </div>
+        </header>
+
+        <!-- 본문 그리드 -->
+        <div class="p-10 max-w-[1400px] w-full space-y-7">
+
+            <!-- 3. KPI 카운트 카드 (5개 열) -->
+            <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <!-- 전체 접수 -->
+                <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <span class="text-xs font-bold text-toss-gray">전체</span>
+                    <div class="text-3xl font-black text-toss-dark mt-3 tracking-tight">
+                        {{ orders | length }}건
+                    </div>
+                </div>
+
+                <!-- 매장관리자 -->
+                <div class="bg-white rounded-3xl p-6 border-2 border-toss-blue/40 shadow-[0_2px_10px_rgba(49,130,246,0.06)]">
+                    <span class="text-xs font-bold text-toss-blue">접수</span>
+                    <div class="text-3xl font-black text-toss-blue mt-3 tracking-tight">
+                        {{ orders | selectattr('status', 'equalto', 'ORDERED') | list | length }}건
+                    </div>
+                </div>
+
+                <!-- 주방 -->
+                <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <span class="text-xs font-bold text-toss-orange">주방</span>
+                    <div class="text-3xl font-black text-toss-orange mt-3 tracking-tight">
+                        {{ orders | selectattr('status', 'in', ['ACCEPTED', 'COOKING']) | list | length }}건
+                    </div>
+                </div>
+
+                <!-- 홀 -->
+                <div class="bg-white rounded-3xl p-6 border border-[#E5E8EB]/80 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <span class="text-xs font-bold text-toss-green">서빙</span>
+                    <div class="text-3xl font-black text-toss-green mt-3 tracking-tight">
+                        {{ orders | selectattr('status', 'in', ['COOKED', 'SERVED', 'COMPLETED']) | list | length }}건
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 세그먼트 필터 탭 -->
+            <section class="flex items-center">
+                <div class="inline-flex p-1.5 bg-[#EEF0F3] rounded-2xl gap-1">
+                    <button class="filter-btn px-4 py-2 rounded-xl font-bold text-sm bg-white text-toss-dark shadow-sm flex items-center gap-1.5"
+                            onclick="filterList('ALL', this)">
+                        전체 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGray text-toss-gray font-bold">{{ orders | length }}</span>
+                    </button>
+                    <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                            onclick="filterList('ORDERED', this)">
+                        접수 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightBlue text-toss-blue font-bold">{{ orders | selectattr('status', 'equalto', 'ORDERED') | list | length }}</span>
+                    </button>
+                    <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                            onclick="filterList('ACCEPTED', this)">
+                        준비 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightOrange text-toss-orange font-bold">{{ orders | selectattr('status', 'in', ['ACCEPTED']) | list | length }}</span>
+                    </button>
+                    <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                            onclick="filterList('COOKING', this)">
+                        조리 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightOrange text-toss-orange font-bold">{{ orders | selectattr('status', 'in', ['COOKING']) | list | length }}</span>
+                    </button>
+                    <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                            onclick="filterList('COOKED', this)">
+                        서빙 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGreen text-toss-green font-bold">{{ orders | selectattr('status', 'in', ['COOKED']) | list | length }}</span>
+                    </button>
+                    <button class="filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition"
+                            onclick="filterList('SERVED', this)">
+                        완료 <span class="text-xs px-2 py-0.5 rounded-full bg-toss-lightGreen text-toss-green font-bold">{{ orders | selectattr('status', 'in', ['SERVED']) | list | length }}</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 5. 주문 카드 목록 (HTMX 10초 자동 폴링 지원) -->
+            <section class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4"
+                     id="order-list-container"
+                     hx-get="/admin/orders/feed"
+                     hx-trigger="every 10m"
+                     hx-swap="innerHTML">
+                {% include "store_admin/fragments/order_list.html" %}
+            </section>
+
+        </div>
+    </main>
+</div>
+
+<script>
+    function filterList(filterType, btnEl) {
+        // 탭 스타일 전환
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.className = 'filter-btn px-4 py-2 rounded-xl font-semibold text-sm text-toss-gray hover:text-toss-dark flex items-center gap-1.5 transition';
+        });
+        btnEl.className = 'filter-btn px-4 py-2 rounded-xl font-bold text-sm bg-white text-toss-dark shadow-sm flex items-center gap-1.5';
+
+        // 카드 필터링
+        const cards = document.querySelectorAll('.order-card');
+        cards.forEach(card => {
+            const status = card.getAttribute('data-status');
+            if (filterType === 'ALL') {
+                card.style.display = 'flex';
+            } else if (filterType === status) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!-- app/templates/store_admin/order_board.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 주문 관리 보드{% endblock %}
+
+{% block header %}
+<header class="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap justify-between items-center shadow-sm">
+    <div class="flex items-center space-x-3">
+        <h1 class="text-lg font-bold text-gray-900">{{ store.name }}</h1>
+        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">관리자 콘솔</span>
+    </div>
+
+    <!-- 실시간 상태 및 간이 탭 -->
+    <div class="flex items-center space-x-3 mt-2 sm:mt-0">
+        <div class="flex items-center space-x-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span>실시간 자동 수신 중 (10초 주기)</span>
+        </div>
+        <button type="button" 
+                hx-get="/admin/orders/feed" 
+                hx-target="#order-container" 
+                hx-swap="innerHTML"
+                class="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition">
+            새로고침
+        </button>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-2">
+    <!-- 주문 카드 컨테이너 (HTMX 주기적 자동 폴링) -->
+    <div id="order-container"
+         hx-get="/admin/orders/feed"
+         hx-trigger="every 10s"
+         hx-swap="innerHTML">
+        {% include "store_admin/fragments/order_list.html" %}
+    </div>
+</div>
+{% endblock %}

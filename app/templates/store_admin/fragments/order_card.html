@@ -1,12 +1,13 @@
 <!-- app/templates/store_admin/fragments/order_card.html -->
-<div id="order-card-{{ order.id }}" 
-     class="bg-white rounded-2xl shadow-sm border transition-all duration-200 overflow-hidden flex flex-col justify-between
-            {% if order.status.value == 'ORDERED' %}border-amber-400 ring-2 ring-amber-300/40
-            {% elif order.status.value == 'ACCEPTED' %}border-blue-400
-            {% elif order.status.value == 'COOKING' %}border-indigo-400
-            {% elif order.status.value == 'SERVED' %}border-emerald-500 bg-emerald-50/20
-            {% elif order.status.value == 'CANCELLED' %}border-gray-200 opacity-60 bg-gray-50
-            {% else %}border-gray-200{% endif %}">
+ <div id="order-card-{{ order.id }}"
+    data-status="{{order.status.value}}"
+    class="order-card bg-white rounded-2xl shadow-sm border transition-all duration-200 overflow-hidden flex flex-col justify-between
+        {% if order.status.value == 'ORDERED' %}border-amber-400 ring-2 ring-amber-300/40
+        {% elif order.status.value == 'ACCEPTED' %}border-blue-400
+        {% elif order.status.value == 'COOKING' %}border-indigo-400
+        {% elif order.status.value == 'SERVED' %}border-emerald-500 bg-emerald-50/20
+        {% elif order.status.value == 'CANCELLED' %}border-gray-200 opacity-60 bg-gray-50
+        {% else %}border-gray-200{% endif %}">
 
     <!-- 카드 상단 헤더 -->
     <div class="p-4 border-b border-gray-100 flex items-center justify-between
