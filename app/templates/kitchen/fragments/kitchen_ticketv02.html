@@ -1,0 +1,92 @@
+<!-- app/templates/kitchen/fragments/kitchen_ticket.html -->
+ {% set statusINfo = {
+    "COOKING":{
+        "class":"text-xs font-bold bg-amber-950 text-white px-2.5 py-1 rounded-full whitespace-nowrap animate-pulse",
+        "text":"조리 중"
+    },
+    "ACCEPTED":{
+        "class":"text-xs font-bold bg-white text-blue-700 px-2.5 py-1 rounded-full whitespace-nowrap shadow-sm",
+        "text":"조리 대기"
+    }
+ }
+  %}
+<div id="kds-ticket-{{ order.id }}" 
+     class="h-full min-w-[260px] bg-white rounded-2xl border-2 flex flex-col justify-between overflow-hidden shadow-sm transition
+            {% if order.status.value == 'COOKING' %}bg-amber-50/40 border-amber-400
+            {% else %}border-blue-200{% endif %}">
+
+    <!-- 티켓 헤더: 겹침 방지 flex 레이아웃 -->
+    <div class="px-4 py-3 flex justify-between items-center gap-2
+                {% if order.status.value == 'COOKING' %}bg-amber-400 text-gray-950
+                {% else %}bg-blue-600 text-white{% endif %}">
+        <div class="flex items-baseline gap-2 min-w-0">
+            <span class="text-xl font-black whitespace-nowrap">테이블 {{ order.table.table_number }}</span>
+            <span class="text-xs opacity-75 font-mono truncate">#{{ order.id }}</span>
+        </div>
+        <div class="shrink-0">
+            {% if order.status.value == 'COOKING' %}
+            <span class="text-xs font-bold bg-amber-950 text-white px-2.5 py-1 rounded-full whitespace-nowrap animate-pulse">
+                조리 중
+            </span>
+            {% else %}
+            <span class="text-xs font-bold bg-white text-blue-700 px-2.5 py-1 rounded-full whitespace-nowrap shadow-sm">
+                조리 대기
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 티켓 내용 -->
+    <div class="p-4 space-y-3 flex-1">
+        <div class="space-y-3 divide-y divide-gray-100">
+            {% for item in order.items %}
+            <div class="pt-2.5 first:pt-0">
+                <div class="flex justify-between items-start gap-2">
+                    <span class="font-bold text-base text-gray-900 leading-snug break-keep">{{ item.item_name }}</span>
+                    <span class="shrink-0 text-sm font-extrabold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                        {{ item.quantity }}개
+                    </span>
+                </div>
+                {% if item.options %}
+                <ul class="mt-1.5 text-xs text-gray-600 space-y-0.5 pl-1">
+                    {% for opt in item.options %}
+                    <li class="flex items-center gap-1.5">
+                        <span class="text-blue-500 font-bold">•</span>
+                        <span class="break-keep">{{ opt.option_name }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if order.special_instruction %}
+        <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 mt-2">
+            <span class="text-[11px] font-extrabold text-red-600 uppercase block">요청 사항</span>
+            <p class="text-xs font-bold text-red-900 mt-0.5 break-keep">{{ order.special_instruction }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 하단 액션 버튼 -->
+    <div class="p-3 bg-gray-50 border-t border-gray-100">
+        {% if order.status.value == 'ACCEPTED' %}
+        <button type="button"
+                hx-post="/kitchen/orders/{{ order.id }}/start"
+                hx-target="#kds-ticket-{{ order.id }}"
+                hx-swap="outerHTML"
+                class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-base rounded-xl shadow transition">
+            조리 시작
+        </button>
+        {% elif order.status.value == 'COOKING' %}
+        <button type="button"
+                hx-post="/kitchen/orders/{{ order.id }}/done"
+                hx-target="#kds-ticket-{{ order.id }}"
+                hx-swap="outerHTML"
+                class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-base rounded-xl shadow transition">
+            조리 완료 (홀 호출)
+        </button>
+        {% endif %}
+    </div>
+</div>

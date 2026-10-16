@@ -1,0 +1,164 @@
+<!-- app/templates/kitchen/fragments/kitchen_ticket.html -->
+{% set statusInfo = {
+    "PENDING": {
+        "badge_bg": "bg-blue-50 text-blue-600 font-bold",
+        "text": "신규 주문",
+        "border": "border-gray-200",
+        "card_bg": "bg-white",
+        "is_canceled": false
+    },
+    "COOKING": {
+        "badge_bg": "bg-amber-50 text-amber-600 font-bold",
+        "text": "조리 중",
+        "border": "border-gray-200",
+        "card_bg": "bg-white",
+        "is_canceled": false
+    },
+    "SERVED": {
+        "badge_bg": "bg-emerald-50 text-emerald-600 font-bold",
+        "text": "서빙 완료",
+        "border": "border-gray-200",
+        "card_bg": "bg-white",
+        "is_canceled": false
+    },
+    "CANCELED": {
+        "badge_bg": "bg-red-50 text-red-500 font-bold",
+        "text": "주문 취소",
+        "border": "border-red-100",
+        "card_bg": "bg-red-50/20",
+        "is_canceled": true
+    }
+} %}
+{% set current_status = statusInfo.get(order.status.value, statusInfo['PENDING']) %}
+
+<div id="kds-ticket-{{ order.id }}" 
+     class="h-full w-[280px] {{ current_status.card_bg }} rounded-3xl border {{ current_status.border }} p-5 flex flex-col justify-between shadow-sm transition">
+    
+    <div>
+        <!-- 상단: 뱃지, 주문번호, 시간 경과 -->
+        <div class="flex items-center justify-between text-xs mb-4">
+            <div class="flex items-center gap-1.5">
+                <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ current_status.badge_bg }}">
+                    {{ current_status.text }}
+                </span>
+                <span class="text-gray-400 font-medium">#{{ order.id }}</span>
+            </div>
+            <span class="text-gray-400 font-medium">
+                {{ order.elapsed_time | default('방금 전') }}
+            </span>
+        </div>
+
+        <!-- 테이블 번호 및 취소 사유 -->
+        <div class="mb-4">
+            <h2 class="text-xl font-bold {{ 'line-through text-gray-300' if current_status.is_canceled else 'text-gray-900' }}">
+                {{ order.table.table_number }}번 테이블
+            </h2>
+            {% if order.cancel_reason %}
+            <p class="text-xs text-red-400 mt-1">
+                사유: {{ order.cancel_reason }}
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- 메뉴 목록 및 결제 요약 박스 -->
+        <div class="bg-slate-50/70 rounded-2xl p-3.5 space-y-3 mb-4">
+            <!-- 메뉴 아이템 목록 -->
+            <div class="space-y-2.5">
+                {% for item in order.items %}
+                <div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium {{ 'line-through text-gray-300' if current_status.is_canceled else 'text-gray-800' }}">
+                            {{ item.item_name }}
+                        </span>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded border {{ 'text-gray-300 border-gray-200 bg-white' if current_status.is_canceled else 'text-blue-600 border-blue-200 bg-white' }}">
+                            {{ item.quantity }}개
+                        </span>
+                    </div>
+
+                    <!-- 옵션 표기 -->
+                    {% if item.options %}
+                    <ul class="text-[11px] text-gray-400 mt-0.5 space-y-0.5">
+                        {% for opt in item.options %}
+                        <li>- {{ opt.option_name }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- 결제 수단 및 금액 -->
+            {% if order.payment_method or order.total_amount %}
+            <div class="pt-2.5 border-t border-gray-200/60 flex justify-between items-center text-xs">
+                <span class="text-gray-400">
+                    {{ order.payment_method | default('카드 결제') }}
+                    {% if current_status.is_canceled %}(환불완료){% endif %}
+                </span>
+                <span class="text-sm font-extrabold {{ 'line-through text-gray-300' if current_status.is_canceled else 'text-gray-900' }}">
+                    {{ "{:,}".format(order.total_amount | default(0)) }}원
+                </span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 특이/요청 사항 (있을 경우만 표시) -->
+        {% if order.special_instruction %}
+        <div class="bg-amber-50 border border-amber-200/60 rounded-xl px-3 py-2 mb-4 text-xs">
+            <span class="font-bold text-amber-700 block text-[11px]">요청사항</span>
+            <p class="text-amber-900 mt-0.5">{{ order.special_instruction }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 하단 액션 버튼 영역 -->
+    <div class="pt-1">
+        {% if order.status.value == 'PENDING' %}
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    hx-post="/kitchen/orders/{{ order.id }}/reject"
+                    hx-target="#kds-ticket-{{ order.id }}"
+                    hx-swap="outerHTML"
+                    class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                거절
+            </button>
+            <button type="button"
+                    hx-post="/kitchen/orders/{{ order.id }}/accept"
+                    hx-target="#kds-ticket-{{ order.id }}"
+                    hx-swap="outerHTML"
+                    class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm shadow-sm transition">
+                주문 수락
+            </button>
+        </div>
+
+        {% elif order.status.value == 'COOKING' %}
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    hx-post="/kitchen/orders/{{ order.id }}/cancel"
+                    hx-target="#kds-ticket-{{ order.id }}"
+                    hx-swap="outerHTML"
+                    class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                취소
+            </button>
+            <button type="button"
+                    hx-post="/kitchen/orders/{{ order.id }}/done"
+                    hx-target="#kds-ticket-{{ order.id }}"
+                    hx-swap="outerHTML"
+                    class="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-sm shadow-sm transition">
+                조리 완료
+            </button>
+        </div>
+
+        {% elif order.status.value == 'SERVED' %}
+        <button type="button" disabled
+                class="w-full py-3 rounded-xl bg-gray-100 text-gray-400 font-semibold text-sm cursor-not-allowed">
+            완료된 주문
+        </button>
+
+        {% elif order.status.value == 'CANCELED' %}
+        <button type="button" disabled
+                class="w-full py-3 rounded-xl bg-red-100/50 text-red-400 font-semibold text-sm cursor-not-allowed">
+            취소 및 환불 완료
+        </button>
+        {% endif %}
+    </div>
+</div>

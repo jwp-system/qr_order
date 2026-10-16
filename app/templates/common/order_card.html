@@ -1,0 +1,167 @@
+<!-- Order Card -->
+<div id="order-card-{{order.id}}" data-order-status="ACCEPTED"
+    class="group h-full w-full rounded-3xl border p-5 flex flex-col justify-between shadow-sm transition-all duration-200
+            /* 기본/대부분 상태 */
+            bg-white border-gray-200
+            /* 취소 상태 스타일 전환 */
+            data-[order-status=CANCELLED]:bg-red-50/25 data-[order-status=CANCELLED]:border-red-100">
+    <div>
+        <!-- 상단 헤더: 상태 뱃지, 주문번호, 경과 시간 -->
+        <div class="flex items-center justify-between text-xs mb-3">
+            <div class="flex items-center gap-1.5">
+                <span id="order-badge-17" class="px-2.5 py-1 rounded-full text-xs font-bold transition-colors
+                             /* 파랑 계열: ORDERED, ACCEPTED */
+                             group-data-[order-status=ORDERED]:bg-blue-50 group-data-[order-status=ORDERED]:text-blue-600
+                             group-data-[order-status=ACCEPTED]:bg-blue-50 group-data-[order-status=ACCEPTED]:text-blue-600
+                             /* 주황 계열: COOKING, COOKED */
+                             group-data-[order-status=COOKING]:bg-amber-50 group-data-[order-status=COOKING]:text-amber-600
+                             group-data-[order-status=COOKED]:bg-amber-50 group-data-[order-status=COOKED]:text-amber-600
+                             /* 초록 계열: SERVED, COMPLETED */
+                             group-data-[order-status=SERVED]:bg-emerald-50 group-data-[order-status=SERVED]:text-emerald-600
+                             group-data-[order-status=COMPLETED]:bg-emerald-50 group-data-[order-status=COMPLETED]:text-emerald-600
+                             /* 빨강 계열: CANCELLED */
+                             group-data-[order-status=CANCELLED]:bg-red-50 group-data-[order-status=CANCELLED]:text-red-500">
+                    조리 준비
+                </span>
+                <span class="text-gray-400 font-medium">#17</span>
+            </div>
+            <span class="text-gray-400 font-medium time-ago" data-created-at="2026-10-15 22:06:34.855211+00:00">2분 전</span>
+        </div>
+
+        <!-- 테이블 명칭 및 상태 설명 문구 -->
+        <div class="mb-3.5">
+            <h2 class="text-xl font-bold text-gray-900 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                {{order.table.table_number}} 테이블
+            </h2>
+            <p id="order-desc-17" class="text-xs text-gray-500 mt-1 leading-relaxed group-data-[order-status=CANCELLED]:text-red-500 font-medium">
+                order status에 따른 안내 문구
+            </p>
+        </div>
+        <!-- 메뉴 목록 및 요청 사항 -->
+        <div class="bg-slate-50/70 rounded-2xl p-3.5 space-y-3 mb-3">
+            <div class="space-y-2.5">
+                <div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium text-gray-800 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                            얼큰 토종 순대국
+                        </span>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded border bg-white border-blue-200 text-blue-600
+                                     group-data-[order-status=CANCELLED]:border-gray-200 group-data-[order-status=CANCELLED]:text-gray-300">
+                            1개
+                        </span>
+                    </div>
+                    <ul class="text-[11px] text-gray-400 mt-0.5 space-y-0.5 group-data-[order-status=CANCELLED]:text-gray-300">
+                        <li>- 아주 매운맛</li>
+                        <li>- 공기밥 추가</li>
+                        <li>- 순대 추가 (5개)</li>
+                        
+                    </ul>
+                    
+                </div>
+                
+                <div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium text-gray-800 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                            부산 돼지 국밥
+                        </span>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded border bg-white border-blue-200 text-blue-600
+                                     group-data-[order-status=CANCELLED]:border-gray-200 group-data-[order-status=CANCELLED]:text-gray-300">
+                            1개
+                        </span>
+                    </div>
+
+                    
+                </div>
+                
+            </div>
+
+            <!-- 결제 금액 -->
+            
+        </div>
+
+        <!-- 고객 요청 사항 (있는 경우) -->
+        
+        <div class="bg-amber-50/80 border border-amber-200/60 rounded-xl px-3 py-2 mb-3 text-xs group-data-[order-status=CANCELLED]:opacity-50">
+            <span class="font-bold text-amber-800 block text-[11px]">요청사항</span>
+            <p class="text-amber-900 mt-0.5">돼지국밥 양념 따로 주세요</p>
+        </div>
+        
+    </div>
+
+    <!-- 하단 액션 버튼 슬롯 (상태에 따라 표시/숨김 처리) -->
+    <div class="pt-1">
+        <!-- 1. ORDERED (신규 주문 접수) -->
+        <div class="hidden group-data-[order-status=ORDERED]:flex items-center gap-2">
+            <button type="button" onclick="updateOrderStatus('17', 'CANCELLED')" class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                거절
+            </button>
+            <button type="button" onclick="updateOrderStatus('17', 'ACCEPTED')" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
+                주문 접수
+            </button>
+        </div>
+
+        <!-- 2. ACCEPTED (조리 준비) -->
+        <div class="hidden group-data-[order-status=ACCEPTED]:flex items-center gap-2">
+            <button type="button" onclick="updateOrderStatus('17', 'CANCELLED')" class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                취소
+            </button>
+            <button type="button" onclick="updateOrderStatus('17', 'COOKING')" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
+                조리 시작
+            </button>
+        </div>
+
+        <!-- 3. COOKING (조리 중) -->
+        <div class="hidden group-data-[order-status=COOKING]:flex items-center gap-2">
+            <button type="button" onclick="updateOrderStatus('17', 'CANCELLED')" class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                취소
+            </button>
+            <button type="button" onclick="updateOrderStatus('17', 'COOKED')" class="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-sm transition">
+                조리 완료
+            </button>
+        </div>
+
+        <!-- 4. COOKED (서빙 준비) -->
+        <div class="hidden group-data-[order-status=COOKED]:block">
+            <button type="button" onclick="updateOrderStatus('17', 'SERVED')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition">
+                서빙 완료
+            </button>
+        </div>
+
+        <!-- 5. SERVED (서빙 완료) -->
+        <div class="hidden group-data-[order-status=SERVED]:block">
+            <button type="button" onclick="updateOrderStatus('17', 'COMPLETED')" class="w-full py-3 rounded-xl bg-gray-700 hover:bg-gray-800 text-white font-bold text-sm shadow-sm transition">
+                주문 마감 (정산 완료)
+            </button>
+        </div>
+
+        <!-- 6. COMPLETED (주문 종료) -->
+        <div class="hidden group-data-[order-status=COMPLETED]:block">
+            <button type="button" disabled="" class="w-full py-3 rounded-xl bg-gray-100 text-gray-400 font-semibold text-sm cursor-not-allowed">
+                완료된 주문
+            </button>
+        </div>
+
+        <!-- 7. CANCELLED (주문 취소) -->
+        <div class="hidden group-data-[order-status=CANCELLED]:block">
+            <button type="button" disabled="" class="w-full py-3 rounded-xl bg-red-100/60 text-red-400 font-semibold text-sm cursor-not-allowed">
+                취소 및 환불 완료
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+function getStatusBadge(status) {
+    switch(status) {
+        case 'NEW':
+            return '<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-toss-lightBlue text-toss-blue">신규 주문</span>';
+        case 'COOKING':
+            return '<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-toss-lightOrange text-toss-orange">조리 중</span>';
+        case 'DONE':
+            return '<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-toss-lightGreen text-toss-green">서빙 완료</span>';
+        case 'CANCEL':
+            return '<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-toss-lightRed text-toss-red">주문 취소</span>';
+}
+}
+</script>

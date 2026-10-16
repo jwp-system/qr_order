@@ -1,81 +1,230 @@
-<!-- app/templates/kitchen/fragments/kitchen_ticket.html -->
-<div id="kds-ticket-{{ order.id }}" 
-     class="min-w-[260px] bg-white rounded-2xl border-2 flex flex-col justify-between overflow-hidden shadow-sm transition
-            {% if order.status.value == 'COOKING' %}bg-amber-50/40 border-amber-400
-            {% else %}border-blue-200{% endif %}">
+<!-- app/templates/kitchen/fragments/order_card.html -->
+{% set STATUS_INFO = {
+    'ORDERED':   {'label': '주문 접수', 'step': 1, 'desc': '고객 신규 주문, 확인 중', 'next': 'ACCEPTED'},
+    'ACCEPTED':  {'label': '조리 준비', 'step': 1, 'desc': '주문 확인 완료', 'next': 'COOKING'},
+    'COOKING':   {'label': '조리 중',   'step': 2, 'desc': '주방 확인, 조리 시작', 'next': 'COOKED'},
+    'COOKED':    {'label': '서빙 준비', 'step': 2, 'desc': '조리 완료, 서빙 준비', 'next': 'SERVED'},
+    'SERVED':    {'label': '서빙 완료', 'step': 3, 'desc': '서빙 완료, 식사 중', 'next': 'COMPLETED'},
+    'COMPLETED': {'label': '주문 완료', 'step': 4, 'desc': '식사 완료, 결제 완료'},
+    'CANCELLED': {'label': '주문 취소', 'step': 0, 'desc': '주문 확인, 취소 처리'}
+} %}
 
-    <!-- 티켓 헤더: 겹침 방지 flex 레이아웃 -->
-    <div class="px-4 py-3 flex justify-between items-center gap-2
-                {% if order.status.value == 'COOKING' %}bg-amber-400 text-gray-950
-                {% else %}bg-blue-600 text-white{% endif %}">
-        <div class="flex items-baseline gap-2 min-w-0">
-            <span class="text-xl font-black whitespace-nowrap">테이블 {{ order.table.table_number }}</span>
-            <span class="text-xs opacity-75 font-mono truncate">#{{ order.id }}</span>
-        </div>
-        <div class="shrink-0">
-            {% if order.status.value == 'COOKING' %}
-            <span class="text-xs font-bold bg-amber-950 text-white px-2.5 py-1 rounded-full whitespace-nowrap animate-pulse">
-                조리 중
-            </span>
-            {% else %}
-            <span class="text-xs font-bold bg-white text-blue-700 px-2.5 py-1 rounded-full whitespace-nowrap shadow-sm">
-                조리 대기
-            </span>
-            {% endif %}
-        </div>
-    </div>
+{% set cur = STATUS_INFO.get(order.status.value, STATUS_INFO['ORDERED']) %}
 
-    <!-- 티켓 내용 -->
-    <div class="p-4 space-y-3 flex-1">
-        <div class="space-y-3 divide-y divide-gray-100">
-            {% for item in order.items %}
-            <div class="pt-2.5 first:pt-0">
-                <div class="flex justify-between items-start gap-2">
-                    <span class="font-bold text-base text-gray-900 leading-snug break-keep">{{ item.item_name }}</span>
-                    <span class="shrink-0 text-sm font-extrabold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                        {{ item.quantity }}개
-                    </span>
-                </div>
-                {% if item.options %}
-                <ul class="mt-1.5 text-xs text-gray-600 space-y-0.5 pl-1">
-                    {% for opt in item.options %}
-                    <li class="flex items-center gap-1.5">
-                        <span class="text-blue-500 font-bold">•</span>
-                        <span class="break-keep">{{ opt.option_name }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
+<div id="order-card-{{ order.id }}"
+     data-order-status="{{ order.status.value }}"
+     class="group h-full w-full rounded-3xl border p-5 flex flex-col justify-between shadow-sm transition-all duration-200
+            /* 상태에 따른 스타일 전환 */
+            /* 기본 */bg-white border-gray-200
+            /* 취소 */data-[order-status=CANCELLED]:bg-red-50/25 data-[order-status=CANCELLED]:border-red-100">
+    <div>
+        <!-- 상단 헤더: 상태 뱃지, 주문번호, 경과 시간 -->
+        <div class="flex items-center justify-between text-xs mb-3">
+            <div class="flex items-center gap-1.5">
+                <span id="order-badge-{{ order.id }}"
+                      class="px-2.5 py-1 rounded-full text-xs font-bold transition-colors
+                             /* 파랑 계열: ORDERED, ACCEPTED */
+                             group-data-[order-status=ORDERED]:bg-blue-50 group-data-[order-status=ORDERED]:text-blue-600
+                             group-data-[order-status=ACCEPTED]:bg-blue-50 group-data-[order-status=ACCEPTED]:text-blue-600
+                             /* 주황 계열: COOKING, COOKED */
+                             group-data-[order-status=COOKING]:bg-amber-50 group-data-[order-status=COOKING]:text-amber-600
+                             group-data-[order-status=COOKED]:bg-amber-50 group-data-[order-status=COOKED]:text-amber-600
+                             /* 초록 계열: SERVED, COMPLETED */
+                             group-data-[order-status=SERVED]:bg-emerald-50 group-data-[order-status=SERVED]:text-emerald-600
+                             group-data-[order-status=COMPLETED]:bg-emerald-50 group-data-[order-status=COMPLETED]:text-emerald-600
+                             /* 빨강 계열: CANCELLED */
+                             group-data-[order-status=CANCELLED]:bg-red-50 group-data-[order-status=CANCELLED]:text-red-500">
+                    {{ cur.label }}
+                </span>
+                <span class="text-gray-400 font-medium">#{{ order.id }}</span>
             </div>
-            {% endfor %}
+            <span class="text-gray-400 font-medium time-ago" 
+                data-created-at="{{ order.created_at }}">
+                계산 중...
+            </span>
         </div>
 
+        <!-- 테이블 명칭 및 상태 설명 문구 -->
+        <div class="mb-3.5">
+            <h2 class="text-xl font-bold text-gray-900 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                {{ order.table.table_number }}번 테이블
+            </h2>
+            <p id="order-desc-{{ order.id }}"
+               class="text-xs text-gray-500 mt-1 leading-relaxed group-data-[order-status=CANCELLED]:text-red-500 font-medium">
+                {{ cur.desc }}
+            </p>
+        </div>
+
+        <!-- 메뉴 목록 및 요청 사항 박스 -->
+        <div class="bg-slate-50/70 rounded-2xl p-3.5 space-y-3 mb-3">
+            <div class="space-y-2.5">
+                {% for item in order.items %}
+                <div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium text-gray-800 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                            {{ item.item_name }}
+                        </span>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded border bg-white border-blue-200 text-blue-600
+                                     group-data-[order-status=CANCELLED]:border-gray-200 group-data-[order-status=CANCELLED]:text-gray-300">
+                            {{ item.quantity }}개
+                        </span>
+                    </div>
+
+                    {% if item.options %}
+                    <ul class="text-[11px] text-gray-400 mt-0.5 space-y-0.5 group-data-[order-status=CANCELLED]:text-gray-300">
+                        {% for opt in item.options %}
+                        <li>- {{ opt.option_name }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 고객 요청 사항 (있는 경우) -->
         {% if order.special_instruction %}
-        <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 mt-2">
-            <span class="text-[11px] font-extrabold text-red-600 uppercase block">요청 사항</span>
-            <p class="text-xs font-bold text-red-900 mt-0.5 break-keep">{{ order.special_instruction }}</p>
+        <div class="bg-amber-50/80 border border-amber-200/60 rounded-xl px-3 py-2 mb-3 text-xs group-data-[order-status=CANCELLED]:opacity-50">
+            <span class="font-bold text-amber-800 block text-[11px]">요청사항</span>
+            <p class="text-amber-900 mt-0.5">{{ order.special_instruction }}</p>
         </div>
         {% endif %}
     </div>
 
-    <!-- 하단 액션 버튼 -->
-    <div class="p-3 bg-gray-50 border-t border-gray-100">
-        {% if order.status.value == 'ACCEPTED' %}
-        <button type="button"
-                hx-post="/kitchen/orders/{{ order.id }}/start"
-                hx-target="#kds-ticket-{{ order.id }}"
-                hx-swap="outerHTML"
-                class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-base rounded-xl shadow transition">
-            조리 시작
-        </button>
-        {% elif order.status.value == 'COOKING' %}
-        <button type="button"
-                hx-post="/kitchen/orders/{{ order.id }}/done"
-                hx-target="#kds-ticket-{{ order.id }}"
-                hx-swap="outerHTML"
-                class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-base rounded-xl shadow transition">
-            조리 완료 (홀 호출)
-        </button>
+    <!-- 하단 액션 버튼 슬롯 (상태에 따라 표시/숨김 처리) -->
+    <div class="pt-1">
+         <!-- 결제 금액 -->
+        {% if order.total_price %}
+        <div class="pt-2.5 border-t border-gray-200/60 flex justify-between items-center text-xs">
+            <span class="text-sm font-extrabold text-gray-900 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                주문 금액
+            </span>
+            <span class="text-sm font-extrabold text-gray-900 group-data-[order-status=CANCELLED]:line-through group-data-[order-status=CANCELLED]:text-gray-300">
+                {{ "{:,}".format(order.total_price | default(0)) }}원
+            </span>
+        </div>
         {% endif %}
+
+        <!-- 1. ORDERED (신규 주문 접수) -->
+        <div class="hidden group-data-[order-status=ORDERED]:flex items-center gap-2">
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'CANCELLED')"
+                    class="py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold text-sm transition">
+                거절
+            </button>
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'ACCEPTED')"
+                    class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
+                주문 접수
+            </button>
+        </div>
+        <!-- 2. ACCEPTED (조리 준비) -->
+        <div class="hidden group-data-[order-status=ACCEPTED]:flex items-center gap-2">
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'COOKING')"
+                    class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
+                조리 시작
+            </button>
+        </div>
+        <!-- 3. COOKING (조리 중) -->
+        <div class="hidden group-data-[order-status=COOKING]:flex items-center gap-2">
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'COOKED')"
+                    class="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-sm transition">
+                조리 완료
+            </button>
+        </div>
+        <!-- 4. COOKED (서빙 준비) -->
+        <div class="hidden group-data-[order-status=COOKED]:block">
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'SERVED')"
+                    class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition">
+                서빙 완료
+            </button>
+        </div>
+        <!-- 5. SERVED (서빙 완료) -->
+        <div class="hidden group-data-[order-status=SERVED]:block">
+            <button type="button"
+                    onclick="updateOrderStatus('{{ order.id }}', 'COMPLETED')"
+                    class="w-full py-3 rounded-xl bg-gray-700 hover:bg-gray-800 text-white font-bold text-sm shadow-sm transition">
+                주문 마감 (정산 완료)
+            </button>
+        </div>
     </div>
 </div>
+<script>
+const STATUS_META = {
+    ORDERED:   { label: "주문 접수", desc: "주문이 접수되었습니다. 매장 확인 대기 중입니다." },
+    ACCEPTED:  { label: "조리 준비", desc: "매장에서 주문을 확인했습니다. 곧 조리를 시작합니다." },
+    COOKING:   { label: "조리 중",   desc: "주방에서 맛있게 조리 중입니다." },
+    COOKED:    { label: "서빙 준비", desc: "조리가 완료되었습니다. 서빙을 준비 중입니다." },
+    SERVED:    { label: "서빙 완료", desc: "음식이 준비되었습니다. 맛있게 드세요!" },
+    COMPLETED: { label: "주문 완료", desc: "이용해 주셔서 감사합니다." },
+    CANCELLED: { label: "주문 취소", desc: "매장 사정으로 주문이 취소되었습니다." }
+};
+
+function updateOrderStatus(orderId, newStatus) {
+    const card = document.getElementById(`order-card-${orderId}`);
+    if (!card || !STATUS_META[newStatus]) return;
+
+    // 1. 최상단 속성 변경 -> group-data-[order-status=...] CSS 규칙 자동 적용
+    card.setAttribute('data-order-status', newStatus);
+
+    // 2. 동적 텍스트(라벨, 상태 안내 문구) 동기화
+    const badge = document.getElementById(`order-badge-${orderId}`);
+    const desc = document.getElementById(`order-desc-${orderId}`);
+
+    if (badge) badge.textContent = STATUS_META[newStatus].label;
+    if (desc) desc.textContent = STATUS_META[newStatus].desc;
+
+    // 3. (선택사항) 백엔드 상태 변경 API 호출이 필요한 경우
+    /*
+    fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    }).catch(err => console.error("상태 업데이트 실패:", err));
+    */
+}
+
+function formatTimeAgo(dateString) {
+    if (!dateString) return '방금 전';
+    
+    const createdTime = new Date(dateString);
+    const now = new Date();
+    const diffSeconds = Math.floor((now - createdTime) / 1000);
+
+    if (diffSeconds < 60) {
+        return '방금 전';
+    }
+    
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) {
+        return `${diffMinutes}분 전`;
+    }
+    
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+        return `${diffHours}시간 전`;
+    }
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}일 전`;
+}
+
+// 화면 내 모든 주문 카드의 경과 시간 갱신 함수
+function updateAllElapsedTimes() {
+    document.querySelectorAll('.time-ago').forEach(el => {
+        const createdAt = el.getAttribute('data-created-at');
+        if (createdAt) {
+            el.textContent = formatTimeAgo(createdAt);
+        }
+    });
+}
+
+// 초기 실행 및 30초마다 자동 갱신
+document.addEventListener('DOMContentLoaded', () => {
+    updateAllElapsedTimes();
+    setInterval(updateAllElapsedTimes, 30000);
+});
+</script>

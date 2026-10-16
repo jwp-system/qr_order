@@ -165,7 +165,6 @@
 <script>
     // 1. 초기 상태값을 대문자 'ALL'로 통일
     let currentStep = "ALL";
-
     // 2. 탭 클릭 시 상태 변경 및 필터 적용
     function filterList(filterType, btnEl) {
         currentStep = filterType;
@@ -177,7 +176,6 @@
         // 카드 필터링 적용
         filterCards();
     }
-
     // 3. 현재 currentStep에 맞추어 카드 show/hide
     function filterCards() {
         document.querySelectorAll('.order-card').forEach(card => {
@@ -187,12 +185,9 @@
             card.style.display = show ? '' : 'none';
         });
     }
-
     // 4. 전체 카운트 갱신 (상단 KPI 카드 + 세그먼트 탭 숫자 뱃지)
     function updateCount() {
-        console.log('update', currentStep);
         const orderCards = document.querySelectorAll('.order-card');
-
         // (1) 상단 KPI 카드 4종 갱신
         const cardInfo = {
             "manager": ['ORDERED'],
@@ -214,24 +209,21 @@
                 }
             });
         }
-
         // (2) 세그먼트 필터 탭 뱃지 카운트 갱신
+        const counts = {};
+        orderCards.forEach(c => {
+            const s = c.dataset.status;
+            counts[s] = (counts[s] || 0) + 1;
+        });
         const tabCounts = {
             'ALL': orderCards.length,
-            'ORDERED': [...orderCards].filter(c => c.dataset.status === 'ORDERED').length,
-            'ACCEPTED': [...orderCards].filter(c => c.dataset.status === 'ACCEPTED').length,
-            'COOKING': [...orderCards].filter(c => c.dataset.status === 'COOKING').length,
-            'COOKED': [...orderCards].filter(c => c.dataset.status === 'COOKED').length,
-            'SERVED': [...orderCards].filter(c => c.dataset.status === 'SERVED').length,
+            'ORDERED': 0,
+            'ACCEPTED': 0,
+            'COOKING': 0,
+            'COOKED': 0,
+            'SERVED': 0,
+            ...counts
         };
-
-        // const counts = {};
-        // orderCards.forEach(c => {
-        //     const s = c.dataset.status;
-        //     counts[s] = (counts[s] || 0) + 1;
-        // });
-        // tabCounts = { ...tabCounts, ...counts };
-
         document.querySelectorAll('.filter-btn').forEach(btn => {
             const onclickAttr = btn.getAttribute('onclick') || '';
             const match = onclickAttr.match(/filterList\('([A-Z]+)'/);
@@ -240,17 +232,13 @@
                 if (badge) badge.textContent = tabCounts[match[1]];
             }
         });
-
         // (3) 갱신 직후 현재 필터 재적용
         filterCards();
-        console.log('update');
     }
-
     // 5. 전역 HTMX swap 감지: 10초 주기 전체 갱신뿐 아니라, 개별 카드 액션 버튼 클릭 swap 시에도 자동 반영
     document.addEventListener('htmx:afterSettle', () => {
         updateCount();
     });
-
     // 6. 페이지 첫 로드 시 바로 실행하여 정합성 확보
     document.addEventListener('DOMContentLoaded', () => {
         updateCount();
