@@ -1,0 +1,31 @@
+{# common/board_layout.html — 보드 공통 레이아웃 (관리자 / 주방 / 홀)
+   context: store, orders, board
+   확장 지점: toolbar (보드 위 영역), page_scripts (페이지 전용 스크립트) #}
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - {{ board.title }}{% endblock %}
+
+{% block header %}
+<header class="{{ board.theme.header }} text-white px-6 py-4 flex justify-between items-center shadow-md">
+    <div class="flex items-center space-x-3">
+        <span class="w-3 h-3 rounded-full {{ board.theme.dot }}"></span>
+        <h1 class="text-lg font-bold">{{ store.name }} - {{ board.title }}</h1>
+    </div>
+    <span class="text-xs {{ board.theme.badge }} px-3 py-1 rounded-full font-semibold">{{ board.badge }}</span>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-2">
+    {% block toolbar %}{% endblock %}
+
+    {# store_id를 함께 보내 다른 매장 페이지에서도 같은 매장의 주문을 갱신한다 #}
+    <div id="board-container"
+         hx-get="{{ board.feed_url }}?store_id={{ store.id }}"
+         hx-trigger="every {{ board.poll_interval }}"
+         hx-swap="innerHTML">
+        {% include "common/order_grid.html" %}
+    </div>
+</div>
+{% block page_scripts %}{% endblock %}
+{% endblock %}

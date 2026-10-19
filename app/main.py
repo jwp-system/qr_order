@@ -1,86 +1,68 @@
-# main.py
+# app/main.py
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.database.session import engine
+from app.routers import client, store, super_admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 애플리케이션 시작 시 DB 연결 확인 등
     yield
     # 종료 시 DB 커넥션 풀 정리
     await engine.dispose()
 
 
-
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    debug=settings.DEBUG,
-    lifespan=lifespan
-)
-
-# CORS 미들웨어 등록
-CORS_ORIGINS = [
-    settings.BASE_URL,
-    f"http://127.0.0.1:{settings.SERVER_PORT}",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 세션 미들웨어 등록
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.SECRET_KEY,
-    max_age=settings.SESSION_MAX_AGE_SECONDS
-)
-
-# 정적 파일 & Jinja2 템플릿 마운트
-app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
+def _register_middlewares(app: FastAPI) -> None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            settings.BASE_URL,
+            f"http://127.0.0.1:{settings.SERVER_PORT}",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    # request.session 용 (스태프 로그인은 core/security.py의 JWT 쿠키를 별도로 사용).
+    # request.session을 쓰는 곳이 없다면 제거해도 된다.
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.SECRET_KEY,
+        max_age=settings.SESSION_MAX_AGE_SECONDS,
+        same_site=settings.SESSION_COOKIE_SAMESITE,
+        https_only=settings.SESSION_COOKIE_SECURE,
+    )
 
 
-# 헬스체크 및 기본 진입점
-@app.get("/healthz", tags=["System"])
-async def health_check():
-    return {"status": "ok", "app": settings.PROJECT_NAME}
+def _register_routes(app: FastAPI) -> None:
+    @app.get("/healthz", tags=["System"])
+    async def health_check():
+        return {"status": "ok", "app": settings.PROJECT_NAME}
+
+    # tags는 각 라우터에 정의되어 있으므로 include 시 다시 넣지 않는다 (OpenAPI 중복 방지)
+    app.include_router(client.router)       # 고객 주문
+    app.include_router(store.router)        # 식당용: /admin, /kitchen, /hall
+    # super_admin.router에 tags가 없다면 tags=["Super Admin"]을 다시 지정
+    app.include_router(super_admin.router, tags=["Super Admin"])
 
 
-# TODO: 도메인별 라우터 등록 예정
-# from app.routers import client, store_admin, kitchen, hall
-# app.include_router(client.router, prefix="", tags=["Client Order"])
-# app.include_router(store_admin.router, prefix="/admin", tags=["Store Admin"])
-# app.include_router(kitchen.router, prefix="/kitchen", tags=["Kitchen KDS"])
-# app.include_router(hall.router, prefix="/hall", tags=["Hall Serving"])
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version=settings.VERSION,
+        debug=settings.DEBUG,
+        lifespan=lifespan,
+    )
+    _register_middlewares(app)
+    app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
+    _register_routes(app)
+    return app
 
-# 클라이언트 주문 라우터 마운트
-from app.routers import client, kitchen
-app.include_router(client.router, prefix="", tags=["Client Order"])
 
-# 매장 관리자 라우터 마운트
-from app.routers import store_admin
-app.include_router(store_admin.router, tags=["Store Admin"])
-
-# 슈퍼 관리자 라우터 마운트
-from app.routers import super_admin
-app.include_router(super_admin.router, tags=["Super Admin"])
-
-# 주방 관리자 라우터 마운트
-from app.routers import kitchen
-app.include_router(kitchen.router, tags=["Kitchen KDS"])
-
-# 홀 서빙 라우터 마운트
-from app.routers import hall
-app.include_router(hall.router, tags=["Hall Serving"])
+app = create_app()

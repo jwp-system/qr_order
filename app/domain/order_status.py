@@ -1,10 +1,15 @@
+"""주문 상태 도메인: 상태 메타, 전이 규칙, 화면/역할별 상태 그룹"""
 from dataclasses import dataclass
 
 from app.database.models import OrderStatus
+from app.domain.roles import Role
 
 S = OrderStatus
 
 
+# =====================================================================
+# 상태 메타
+# =====================================================================
 @dataclass(frozen=True)
 class StatusMeta:
     label: str                       # 고객/화면 표시명
@@ -49,7 +54,7 @@ STATUS_META: dict[OrderStatus, StatusMeta] = {
         customer_desc="음식이 준비되었습니다. 맛있게 드세요!",
         internal_desc="테이블 서빙 완료. 결제/주문 종료 대기.",
         next=S.COMPLETED,
-        allowed=frozenset({S.COMPLETED}),
+        allowed=frozenset({S.COMPLETED, S.CANCELLED}),
     ),
     S.COMPLETED: StatusMeta(
         label="주문 완료", step=4,
@@ -67,16 +72,22 @@ STATUS_META: dict[OrderStatus, StatusMeta] = {
     ),
 }
 
-# ---------- 상태 그룹 (화면별 조회 대상) ----------
+
+# =====================================================================
+# 상태 그룹 (화면별 조회 대상)
+# =====================================================================
 TERMINAL_STATUSES = frozenset(s for s, m in STATUS_META.items() if not m.allowed)
 ACTIVE_STATUSES = tuple(s for s in OrderStatus if s not in TERMINAL_STATUSES)
 
 KITCHEN_STATUSES = (S.ACCEPTED, S.COOKING)   # 주방 KDS
 HALL_STATUSES = (S.COOKED,)                  # 홀 서빙
 # 고객 화면(주문 현황, 배지)에 보여줄 상태: 진행 중인 주문 전체
-CUSTOMER_VISIBLE_STATUSES = ACTIVE_STATUSES   # ORDERED ~ SERVED
+CUSTOMER_VISIBLE_STATUSES = ACTIVE_STATUSES  # ORDERED ~ SERVED
 
-# ---------- 전이 검증 ----------
+
+# =====================================================================
+# 전이 검증
+# =====================================================================
 class InvalidTransition(Exception):
     def __init__(self, current: OrderStatus, target: OrderStatus):
         super().__init__(f"{current.value} -> {target.value} 전이는 허용되지 않습니다.")
@@ -107,3 +118,31 @@ def can_cancel(status: OrderStatus) -> bool:
 def describe(status: OrderStatus, *, internal: bool = False) -> str:
     m = STATUS_META[status]
     return m.internal_desc if internal else m.customer_desc
+
+
+# =====================================================================
+# 역할별 처리 (서버 검증 + 템플릿 버튼 노출 공통 사용)
+# =====================================================================
+# 역할별로 변경할 수 있는 목표 상태
+ROLE_TARGETS: dict[Role, frozenset[OrderStatus]] = {
+    Role.ADMIN: frozenset({
+        S.ACCEPTED, S.COOKING, S.COOKED, S.SERVED, S.COMPLETED, S.CANCELLED,
+    }),
+    Role.KITCHEN: frozenset({S.COOKING, S.COOKED}),
+    Role.HALL: frozenset({S.SERVED}),
+}
+
+# 역할별 보드에 남아 있어야 하는 상태 (변경 후 여기에 없으면 카드 제거)
+ROLE_VIEW_STATUSES: dict[Role, frozenset[OrderStatus]] = {
+    Role.ADMIN: frozenset(ACTIVE_STATUSES),
+    Role.KITCHEN: frozenset(KITCHEN_STATUSES),
+    Role.HALL: frozenset(HALL_STATUSES),
+}
+
+
+def can_role_change(role: Role, target: OrderStatus) -> bool:
+    return target in ROLE_TARGETS[role]
+
+
+def stays_on_board(role: Role, status: OrderStatus) -> bool:
+    return status in ROLE_VIEW_STATUSES[role]

@@ -1,0 +1,16 @@
+<!-- client/partials/category_nav.html -->
+{% macro chip(cat_id, name) -%}
+<button type="button"
+        class="px-4 py-2 rounded-xl text-sm font-semibold shrink-0 transition"
+        :class="currentCategory === '{{ cat_id }}'
+            ? 'bg-[#191F28] text-white shadow-sm'
+            : 'bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]'"
+        @click="setCategory('{{ cat_id }}')">{{ name }}</button>
+{%- endmacro %}
+
+<nav class="flex gap-2 mt-4 overflow-x-auto no-scrollbar py-1">
+    {{ chip('0', '전체') }}
+    {% for cat in categories %}
+        {{ chip(cat.id, cat.name) }}
+    {% endfor %}
+</nav>

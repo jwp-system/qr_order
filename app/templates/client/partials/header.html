@@ -1,0 +1,32 @@
+<!-- client/partials/header.html -->
+<header class="sticky top-0 bg-white/90 backdrop-blur-md z-20 px-5 pt-4 pb-3 border-b border-[#F2F4F6]">
+    <div class="flex items-center justify-between">
+        <div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#3182F6]">
+                테이블 {{ table.table_number }}번
+            </span>
+            <h1 class="text-xl font-bold tracking-tight text-[#191F28] mt-1">{{ store.name }}</h1>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    hx-get="/orders/status?qr_token={{ qr_token }}"
+                    hx-target="#modal-container"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition flex items-center gap-1.5">
+                <span>주문 내역</span>
+                {% if active_order_count and active_order_count > 0 %}
+                    <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                        {{ active_order_count }}
+                    </span>
+                {% endif %}
+            </button>
+
+            <button type="button"
+                    class="px-2.5 py-1.5 text-xs text-[#8B95A1] hover:text-[#4E5968] font-medium transition active:scale-95">
+                직원 호출
+            </button>
+        </div>
+    </div>
+
+    {% include "client/partials/category_nav.html" %}
+</header>
