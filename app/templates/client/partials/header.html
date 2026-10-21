@@ -8,17 +8,23 @@
             <h1 class="text-xl font-bold tracking-tight text-[#191F28] mt-1">{{ store.name }}</h1>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2"
+            hx-get="/orders/active?qr_token={{ qr_token }}"
+            hx-trigger="every 10s"
+            hx-target="#order-active"
+            hx-swap="innerHTML">
             <button type="button"
                     hx-get="/orders/status?qr_token={{ qr_token }}"
                     hx-target="#modal-container"
                     class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition flex items-center gap-1.5">
                 <span>주문 내역</span>
+                <div id="order-active">
                 {% if active_order_count and active_order_count > 0 %}
                     <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
                         {{ active_order_count }}
                     </span>
                 {% endif %}
+                </div>
             </button>
 
             <button type="button"

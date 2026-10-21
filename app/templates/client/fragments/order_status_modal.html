@@ -21,18 +21,20 @@
         <div class="p-5 overflow-y-auto space-y-5 flex-1">
             {% if orders %}
                 {% for order in orders %}
+                {% set order_step = STATUS_META[order.status].step %}
+                {% set order_label = STATUS_META[order.status].label %}
                 <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-3">
-                    
                     <!-- 주문 번호 & 상태 배지 -->
                     <div class="flex justify-between items-center border-b border-gray-200/60 pb-2">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-gray-900">주문번호 #{{ order.id }}</span>
                             <span class="text-[11px] text-gray-400">{{ order.created_at.strftime('%H:%M') if order.created_at else '' }}</span>
+                            <span class="text-[12px] text-blue-800">[{{ order_label }}]</span>
                         </div>
                         <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full
-                            {% if order.step == 1 %} bg-blue-100 text-blue-700
-                            {% elif order.step == 2 %} bg-amber-100 text-amber-700
-                            {% elif order.step == 3 %} bg-emerald-100 text-emerald-700
+                            {% if order_step == 1 %} bg-blue-100 text-blue-700
+                            {% elif order_step == 2 %} bg-amber-100 text-amber-700
+                            {% elif order_step == 3 %} bg-emerald-100 text-emerald-700
                             {% else %} bg-gray-100 text-gray-600 {% endif %}">
                             {{ order.status_label }}
                         </span>
@@ -42,9 +44,9 @@
                     <div>
                         <div class="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
                             <div class="h-full rounded-full transition-all duration-300
-                                {% if order.step == 1 %} w-1/3 bg-blue-600
-                                {% elif order.step == 2 %} w-2/3 bg-amber-500
-                                {% elif order.step == 3 %} w-full bg-emerald-500
+                                {% if order_step == 1 %} w-1/3 bg-blue-600
+                                {% elif order_step == 2 %} w-2/3 bg-amber-500
+                                {% elif order_step == 3 %} w-full bg-emerald-500
                                 {% endif %}"></div>
                         </div>
                         <p class="text-[11px] text-gray-500 mt-1.5 text-right">{{ order.status_desc }}</p>

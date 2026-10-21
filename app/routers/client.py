@@ -55,6 +55,14 @@ async def get_order_status_modal(request: Request, qr_token: str, db: AsyncSessi
         context=await svc.get_order_status_context(db, qr_token),
     )
 
+@router.get("/orders/active", response_class=HTMLResponse)
+async def get_order_active_count(request: Request, qr_token: str, db: AsyncSession = Depends(get_db)):
+    """현재 주문 갯수"""
+    return templates.TemplateResponse(
+            request=request,
+            name="client/fragments/order_status_active.html",
+            context=await svc.get_active_order_count(db, qr_token),
+    )
 
 @router.get("/items/{item_id}/modal", response_class=HTMLResponse)
 async def get_item_option_modal(request: Request, item_id: int, db: AsyncSession = Depends(get_db)):

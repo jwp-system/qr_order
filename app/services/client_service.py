@@ -101,6 +101,16 @@ async def get_table_orders(db: AsyncSession, table_id: int) -> list[Order]:
 # =====================================================================
 # 화면용 컨텍스트 (라우터를 얇게 유지하기 위한 조합 함수)
 # =====================================================================
+async def get_active_order_count(db, qr_token:str) -> dict:
+    """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
+    table = await get_active_table_by_token(
+        db, qr_token, load_store=True, not_found_status=status.HTTP_404_NOT_FOUND
+    )
+    return {
+        "qr_token": qr_token,
+        "active_order_count": await count_table_active_orders(db, table.id),
+    }
+
 async def get_menu_context(db: AsyncSession, qr_token: str) -> dict:
     """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
     table = await get_active_table_by_token(
