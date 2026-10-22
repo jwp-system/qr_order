@@ -39,7 +39,7 @@ QR Order는 이 문제를 **주문 접수 → 조리 → 서빙 → 마감** 한
 - 품절 메뉴는 클릭이 막히고 "품절" 표시
 - 내 테이블의 주문 내역과 진행 상태 확인
 
-<table align="center">
+<table align="center" class="gallery">
   <tr>
     <td align="center"><img src="images/customer-menu.png" alt="메뉴 목록" width="220"></td>
     <td align="center"><img src="images/customer-option-modal.png" alt="옵션 선택" width="220"></td>
@@ -155,8 +155,8 @@ QR Order는 이 문제를 **주문 접수 → 조리 → 서빙 → 마감** 한
 
 도입 상담, 데모 요청, 맞춤 기능 문의는 아래로 연락 주세요.
 
-- 담당자: _(박종욱)_
-- 이메일: _(jw.park363@gmail.com)_
-- 전화: _(010-4576-6690)_
+- 담당자: _(이름)_
+- 이메일: _(이메일 주소)_
+- 전화: _(연락처)_
 
 > 데모 화면으로 직접 주문해 보시면 주방과 홀 화면이 어떻게 연결되는지 3분 안에 확인하실 수 있습니다.

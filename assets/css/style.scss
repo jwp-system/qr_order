@@ -1,0 +1,26 @@
+---
+---
+// 브랜드 컬러 (QR Order 블루)
+$header-bg-color: #3182F6;
+$header-bg-color-secondary: #1B64DA;
+$section-headings-color: #191F28;
+$body-link-color: #3182F6;
+
+@import "{{ site.theme }}";
+
+// README 첫 줄의 "# QR Order"는 헤더와 중복되므로 숨김
+.main-content > h1:first-child { display: none; }
+
+.main-content {
+  max-width: 64rem;
+  h2 { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid #E5E8EB; }
+  img { max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, .08); }
+  blockquote { border-left-color: #3182F6; background: #F2F8FF; padding: .6rem 1rem; border-radius: 0 8px 8px 0; }
+}
+
+// 스크린샷 갤러리 테이블: 테두리와 줄무늬 제거
+.main-content table.gallery {
+  display: table;
+  margin: 1.5rem auto;
+  th, td, tr { border: 0; background: transparent; padding: .5rem; }
+}

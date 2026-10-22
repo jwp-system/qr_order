@@ -1,3 +1,22 @@
-theme: minima
-title: AI POS
-description: 스마트 매장관리 솔루션
+title: QR Order
+description: 테이블 QR 하나로 주문부터 서빙, 마감까지
+lang: ko
+theme: jekyll-theme-cayman
+
+# 소셜 공유(카카오톡, 슬랙 등) 미리보기 이미지
+image: /images/manager-dashboard.png
+
+# 프로젝트 페이지(https://USER.github.io/REPO/)는 GitHub Pages가 baseurl을 자동 설정합니다.
+# 커스텀 도메인이나 로컬 확인 시에만 아래 값을 직접 지정하세요.
+# url: "https://example.com"
+# baseurl: ""
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-github-metadata
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
