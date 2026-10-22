@@ -24,3 +24,6 @@ $body-link-color: #3182F6;
   margin: 1.5rem auto;
   th, td, tr { border: 0; background: transparent; padding: .5rem; }
 }
+
+// 헤더의 "View on GitHub" 버튼 숨김
+.page-header .btn { display: none; }
