@@ -1,0 +1,132 @@
+{# store_admin/order_board.html — 매장 관리자 주문 현황 (common/board_layout 사용)
+   context: store, orders, board (BOARDS['admin'])
+   헤더 / 카드 그리드 / 폴링은 공통 레이아웃이 담당하고, 여기서는 KPI와 필터 탭만 추가한다. #}
+{% extends "common/board_layout.html" %}
+
+{% block toolbar %}
+    {# KPI: statuses는 쉼표 구분 상태값, '*'는 전체. 주방/서빙은 ROLE_VIEW_STATUSES와 항상 일치 #}
+    {% set kpis = [
+        {'label': '전체', 'statuses': '*',
+         'box': 'border border-gray-200', 'label_color': 'text-gray-500', 'color': 'text-gray-900'},
+        {'label': '접수', 'statuses': 'ORDERED',
+         'box': 'border-2 border-blue-300', 'label_color': 'text-blue-600', 'color': 'text-blue-600'},
+        {'label': '주방', 'statuses': ROLE_VIEW_STATUS_VALUES['kitchen'] | join(','),
+         'box': 'border border-gray-200', 'label_color': 'text-orange-500', 'color': 'text-orange-500'},
+        {'label': '서빙', 'statuses': ROLE_VIEW_STATUS_VALUES['hall'] | join(','),
+         'box': 'border border-gray-200', 'label_color': 'text-emerald-600', 'color': 'text-emerald-600'},
+    ] %}
+
+    {# 필터 탭: (필터 키, 라벨, 배지 색) #}
+    {% set tabs = [
+        ('ALL',      '전체', 'bg-gray-100 text-gray-500'),
+        ('ORDERED',  '대기', 'bg-blue-50 text-blue-600'),
+        ('ACCEPTED', '접수', 'bg-orange-50 text-orange-500'),
+        ('COOKING',  '조리', 'bg-orange-50 text-orange-500'),
+        ('COOKED',   '서빙', 'bg-emerald-50 text-emerald-600'),
+        ('SERVED',   '완료', 'bg-emerald-50 text-emerald-600'),
+    ] %}
+
+    <div class="space-y-4 mb-5">
+        <div class="flex items-center justify-between gap-4">
+            <p class="text-sm text-gray-500 font-medium">신규 주문이 접수 되면 접수카드에 숫자가 표시됩니다.</p>
+            <button type="button"
+                    hx-get="{{ board.feed_url }}?store_id={{ store.id }}"
+                    hx-target="#board-container"
+                    hx-swap="innerHTML"
+                    class="shrink-0 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs transition active:scale-95 shadow-sm">
+                🔄 새로고침
+            </button>
+        </div>
+
+        {# KPI 카운트 카드 (숫자는 페이지 스크립트가 카드 DOM 기준으로 채운다) #}
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {% for k in kpis %}
+                <div class="bg-white rounded-2xl p-5 shadow-sm {{ k.box }}">
+                    <span class="text-xs font-bold {{ k.label_color }}">{{ k.label }}</span>
+                    <div class="text-2xl font-black mt-2 tracking-tight {{ k.color }}">
+                        <span data-kpi-statuses="{{ k.statuses }}">0건</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+
+        {# 세그먼트 필터 탭 #}
+        <section class="max-w-full overflow-x-auto">
+            <div class="inline-flex p-1.5 bg-gray-100 rounded-2xl gap-1">
+                {% for key, label, badge in tabs %}
+                    <button type="button" data-filter="{{ key }}"
+                            aria-pressed="{{ 'true' if loop.first else 'false' }}"
+                            class="px-4 py-2 rounded-xl font-semibold text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition
+                                   aria-pressed:bg-white aria-pressed:text-gray-900 aria-pressed:font-bold aria-pressed:shadow-sm">
+                        {{ label }}
+                        <span data-count-for="{{ key }}" class="text-xs px-2 py-0.5 rounded-full font-bold {{ badge }}">0</span>
+                    </button>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+(() => {
+    let currentFilter = 'ALL';
+
+    const cards = () => document.querySelectorAll('#board-container .order-card');
+    const statusOf = (card) => (card.dataset.status || '').trim();
+
+    // 현재 필터에 맞춰 카드 show/hide
+    function applyFilter() {
+        cards().forEach(card => {
+            card.style.display =
+                (currentFilter === 'ALL' || currentFilter === statusOf(card)) ? '' : 'none';
+        });
+    }
+
+    // KPI 카드 + 탭 배지 숫자 갱신 (카드 DOM이 유일한 기준)
+    function updateCounts() {
+        const counts = {};
+        let total = 0;
+        cards().forEach(card => {
+            const s = statusOf(card);
+            counts[s] = (counts[s] || 0) + 1;
+            total += 1;
+        });
+
+        document.querySelectorAll('[data-kpi-statuses]').forEach(el => {
+            const spec = el.dataset.kpiStatuses;
+            const n = spec === '*'
+                ? total
+                : spec.split(',').reduce((sum, s) => sum + (counts[s] || 0), 0);
+            el.textContent = `${n}건`;
+        });
+
+        document.querySelectorAll('[data-count-for]').forEach(el => {
+            const key = el.dataset.countFor;
+            el.textContent = key === 'ALL' ? total : (counts[key] || 0);
+        });
+
+        applyFilter();  // 갱신 직후 현재 필터 재적용
+    }
+
+    // 탭 클릭 (document 위임: 스크립트 위치와 무관하게 동작)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-filter]');
+        if (!btn) return;
+        currentFilter = btn.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach(b =>
+            b.setAttribute('aria-pressed', String(b === btn)));
+        applyFilter();
+    });
+
+    // 폴링, 카드 버튼 swap 등 모든 HTMX swap 이후 반영
+    document.addEventListener('htmx:afterSettle', updateCounts);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateCounts);
+    } else {
+        updateCounts();
+    }
+})();
+</script>
+{% endblock %}

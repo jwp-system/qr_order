@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슈퍼 어드민 콘솔 | QuickOrder Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX & Alpine.js -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <style>
+        body { font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-[#F9FAFB] text-[#191F28] antialiased min-h-screen flex" 
+      x-data="{ currentTab: 'pending', showLicenseModal: false, selectedStore: '' }">
+
+    <!-- 좌측 시스템 전용 사이드바 -->
+    <aside class="w-64 bg-white border-r border-[#F2F4F6] p-6 flex flex-col justify-between shrink-0">
+        <div>
+            <!-- 로고 및 서비스 타이틀 -->
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-9 h-9 rounded-2xl bg-[#191F28] flex items-center justify-center text-white font-black text-lg">
+                    ⚡
+                </div>
+                <div>
+                    <span class="font-extrabold text-base tracking-tight block">QuickOrder</span>
+                    <span class="text-[11px] font-bold text-[#3182F6] bg-blue-50 px-1.5 py-0.5 rounded">슈퍼 어드민</span>
+                </div>
+            </div>
+
+            <!-- 네비게이션 메뉴 -->
+            <nav class="space-y-1">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-[#3182F6] font-bold text-sm">
+                    매장 승인 & 라이선스
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">
+                    전체 입점 매장 현황
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">
+                    트래픽 및 서버 상태
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7684] hover:bg-gray-50 font-medium text-sm transition">
+                    플랫폼 설정
+                </a>
+            </nav>
+        </div>
+
+        <!-- 계정 프로필 -->
+        <div class="p-3 bg-[#F2F4F6] rounded-2xl flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center font-bold text-xs text-white">ROOT</div>
+            <div class="text-xs">
+                <span class="font-bold text-[#333D4B] block">최고 관리자</span>
+                <span class="text-[#8B95A1]">운영 시스템 온라인</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 메인 대시보드 바디 -->
+    <main class="flex-1 p-10 overflow-y-auto">
+        
+        <!-- 상단 헤더 -->
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-[#191F28]">매장 운영 및 라이선스 관리</h1>
+                <p class="text-sm text-[#8B95A1] mt-1">신규 서비스 가입 신청을 검토하고 고유 서비스 코드를 발급합니다.</p>
+            </div>
+            <div>
+                <button class="px-5 py-2.5 bg-[#191F28] hover:bg-[#333D4B] text-white rounded-xl text-sm font-bold shadow-sm transition active:scale-[0.98]">
+                    + 수동 매장 등록
+                </button>
+            </div>
+        </header>
+
+        <!-- 핵심 운영 메트릭 KPI 카드 (Toss Style) -->
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+            <div class="bg-white p-6 rounded-3xl border border-[#F2F4F6] shadow-sm">
+                <span class="text-xs font-semibold text-[#8B95A1]">가입 승인 대기</span>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span class="text-3xl font-black text-[#E84057]">3</span>
+                    <span class="text-xs font-bold text-[#E84057] bg-rose-50 px-2 py-0.5 rounded-full">신규 접수</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-[#F2F4F6] shadow-sm">
+                <span class="text-xs font-semibold text-[#8B95A1]">활성 라이선스 매장</span>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span class="text-3xl font-black text-[#191F28]">128</span>
+                    <span class="text-xs font-bold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-full">전체 134</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-[#F2F4F6] shadow-sm">
+                <span class="text-xs font-semibold text-[#8B95A1]">오늘 누적 주문 처리 건수</span>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span class="text-3xl font-black text-[#191F28]">4,892</span>
+                    <span class="text-xs font-medium text-[#8B95A1]">건</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-[#F2F4F6] shadow-sm">
+                <span class="text-xs font-semibold text-[#8B95A1]">라이선스 만료 임박 (7일 내)</span>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span class="text-3xl font-black text-[#F59E0B]">5</span>
+                    <span class="text-xs font-medium text-[#8B95A1]">개 매장</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 탭 및 매장 테이블 섹션 -->
+        <section class="bg-white rounded-3xl border border-[#F2F4F6] shadow-sm overflow-hidden">
+            <!-- 탭 헤더 -->
+            <div class="p-6 border-b border-[#F2F4F6] flex items-center justify-between">
+                <div class="flex gap-2">
+                    <button @click="currentTab = 'pending'"
+                            :class="currentTab === 'pending' ? 'bg-[#191F28] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'"
+                            class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2">
+                        <span>승인 대기 신청</span>
+                        <span class="w-5 h-5 rounded-full bg-[#E84057] text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                    </button>
+                    <button @click="currentTab = 'active'"
+                            :class="currentTab === 'active' ? 'bg-[#191F28] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'"
+                            class="px-4 py-2 rounded-xl text-sm font-bold transition">
+                        운영 중인 매장
+                    </button>
+                </div>
+
+                <div class="relative w-64">
+                    <input type="text" placeholder="매장명, 점주명 검색..." 
+                           class="w-full bg-[#F9FAFB] border border-[#E5E8EB] rounded-xl px-4 py-2 text-xs font-medium text-[#191F28] focus:outline-none focus:border-[#3182F6]">
+                </div>
+            </div>
+
+            <!-- 승인 대기 리스트 (Tab: pending) -->
+            <div x-show="currentTab === 'pending'" class="divide-y divide-[#F2F4F6]" id="pending-store-list">
+                
+                <!-- 신청 항목 1 -->
+                <div class="p-6 flex items-center justify-between hover:bg-[#F9FAFB] transition" id="store-row-201">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#3182F6] flex items-center justify-center font-bold text-lg shrink-0">
+                            식당
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-base text-[#191F28]">을지로 카츠 본점</span>
+                                <span class="text-xs text-[#8B95A1]">사업자번호: 104-86-12345</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-[#6B7684] mt-1">
+                                <span>점주: 홍길동</span>
+                                <span>•</span>
+                                <span>연락처: 010-1234-5678</span>
+                                <span>•</span>
+                                <span>신청일시: 2026.10.02 14:10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button class="px-4 py-2 rounded-xl bg-[#F2F4F6] hover:bg-rose-50 hover:text-[#E84057] text-[#6B7684] font-bold text-xs transition"
+                                hx-post="/super-admin/stores/201/reject"
+                                hx-target="#store-row-201"
+                                hx-swap="delete">
+                            반려
+                        </button>
+                        <button class="px-5 py-2.5 rounded-xl bg-[#3182F6] hover:bg-[#2272EB] text-white font-bold text-xs shadow-sm transition active:scale-[0.98]"
+                                @click="showLicenseModal = true; selectedStore = '을지로 카츠 본점'">
+                            승인 및 코드 발급
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 신청 항목 2 -->
+                <div class="p-6 flex items-center justify-between hover:bg-[#F9FAFB] transition" id="store-row-202">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-[#F59E0B] flex items-center justify-center font-bold text-lg shrink-0">
+                            카페
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-base text-[#191F28]">성수 브루어스</span>
+                                <span class="text-xs text-[#8B95A1]">사업자번호: 211-81-98765</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-[#6B7684] mt-1">
+                                <span>점주: 김철수</span>
+                                <span>•</span>
+                                <span>연락처: 010-9876-5432</span>
+                                <span>•</span>
+                                <span>신청일시: 2026.10.02 11:25</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button class="px-4 py-2 rounded-xl bg-[#F2F4F6] hover:bg-rose-50 hover:text-[#E84057] text-[#6B7684] font-bold text-xs transition"
+                                hx-post="/super-admin/stores/202/reject"
+                                hx-target="#store-row-202"
+                                hx-swap="delete">
+                            반려
+                        </button>
+                        <button class="px-5 py-2.5 rounded-xl bg-[#3182F6] hover:bg-[#2272EB] text-white font-bold text-xs shadow-sm transition active:scale-[0.98]"
+                                @click="showLicenseModal = true; selectedStore = '성수 브루어스'">
+                            승인 및 코드 발급
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 운영 중 매장 리스트 (Tab: active) -->
+            <div x-show="currentTab === 'active'" class="divide-y divide-[#F2F4F6]" style="display: none;">
+                <div class="p-6 flex items-center justify-between hover:bg-[#F9FAFB] transition">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-base text-[#191F28]">강남 솥밥 명가</span>
+                            <span class="font-mono text-xs font-bold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded">CODE: STR-981A</span>
+                        </div>
+                        <p class="text-xs text-[#8B95A1] mt-1">라이선스: 30일 플랜 (만료일: 2026.10.28) • 테이블 14개 가동 중</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 정상 가동
+                        </span>
+                        <button class="px-3.5 py-2 rounded-xl bg-[#F2F4F6] text-xs font-bold text-[#4E5968] hover:bg-[#E5E8EB] transition">
+                            연장 / 제어
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 승인 & 서비스 코드 발급 모달 (Bottom Sheet / Dialog) -->
+        <div x-show="showLicenseModal" 
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+             style="display: none;"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+             
+            <div class="w-full max-w-md bg-white rounded-3xl p-6 shadow-xl space-y-5" @click.outside="showLicenseModal = false">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-[#191F28]">서비스 코드 및 라이선스 발급</h3>
+                    <button @click="showLicenseModal = false" class="text-[#8B95A1] hover:text-[#191F28]">✕</button>
+                </div>
+
+                <div class="bg-[#F9FAFB] p-4 rounded-2xl border border-[#F2F4F6]">
+                    <span class="text-xs text-[#8B95A1] block font-medium">대상 매장명</span>
+                    <span class="text-base font-bold text-[#191F28] mt-0.5 block" x-text="selectedStore"></span>
+                </div>
+
+                <form class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-[#4E5968] block mb-1.5">발급할 서비스 코드 (UUID/자동 생성)</label>
+                        <input type="text" readonly value="STR-2026-X891F" 
+                               class="w-full bg-[#F2F4F6] border border-[#E5E8EB] rounded-xl px-4 py-3 font-mono text-sm font-bold text-[#3182F6]">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-[#4E5968] block mb-1.5">라이선스 플랜 선택</label>
+                        <select class="w-full bg-white border border-[#E5E8EB] rounded-xl px-4 py-3 text-sm font-medium text-[#191F28] focus:outline-none focus:border-[#3182F6]">
+                            <option>14일 무료 체험 (Trial)</option>
+                            <option selected>1개월 정기 라이선스 (30일)</option>
+                            <option>1년 엔터프라이즈 라이선스 (365일)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-[#4E5968] block mb-1.5">최대 생성 가능 테이블 수</label>
+                        <input type="number" value="20" 
+                               class="w-full bg-white border border-[#E5E8EB] rounded-xl px-4 py-3 text-sm font-medium text-[#191F28] focus:outline-none focus:border-[#3182F6]">
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="button" 
+                                @click="showLicenseModal = false"
+                                class="w-full h-12 bg-[#3182F6] hover:bg-[#2272EB] text-white rounded-xl font-bold text-sm shadow-md transition active:scale-[0.98]">
+                            승인 및 점주 알림 발송
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

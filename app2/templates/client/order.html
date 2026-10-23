@@ -1,0 +1,18 @@
+<!-- client/order.html -->
+{% extends "client/base.html" %}
+
+{% block title %}{{ store.name }}{% endblock %}
+
+{% block body %}
+    {% include "client/partials/header.html" %}
+
+    <main class="flex-1 px-5 pt-4 space-y-4">
+        {% for cat in categories %}
+            {% for item in cat.items %}
+                {% include "client/partials/menu_item.html" %}
+            {% endfor %}
+        {% endfor %}
+    </main>
+
+    {% include "client/partials/cart_bar.html" %}
+{% endblock %}

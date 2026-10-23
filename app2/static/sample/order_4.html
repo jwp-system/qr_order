@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>맛있는 식당 - QR 주문</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toss: {
+                            blue: '#3182F6',
+                            hoverBlue: '#1B64DA',
+                            lightBlue: '#E8F3FF',
+                            dark: '#191F28',
+                            gray: '#8B95A1',
+                            lightGray: '#F2F4F6',
+                            border: '#E5E8EB',
+                            bg: '#F9FAFB',
+                            red: '#F04452',
+                            lightRed: '#FEECEE'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-toss-bg text-toss-dark font-sans antialiased min-h-screen pb-28">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-toss-border/60">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold tracking-tight text-toss-dark">맛있는 식당</h1>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    주문가능
+                </span>
+            </div>
+            <p class="text-xs text-toss-gray mt-0.5 font-medium">테이블 <span class="text-toss-dark font-bold">5번</span> • 비대면 주문</p>
+        </div>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="max-w-5xl mx-auto px-5 pt-6 space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-toss-dark">대표 메뉴</h2>
+        <span class="text-xs text-toss-gray">메뉴를 선택해 옵션을 조절하세요</span>
+    </div>
+
+    <!-- 메뉴 카드 리스트 -->
+    <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+</main>
+
+<!-- Floating Cart Bar (하단 장바구니 바) -->
+<div id="floating-cart-bar" class="fixed bottom-0 inset-x-0 p-4 z-30 pointer-events-none transition-all duration-300 translate-y-28 opacity-0">
+    <div class="max-w-md mx-auto pointer-events-auto">
+        <button onclick="openCartModal()" id="cart-bar-btn" class="w-full bg-toss-blue hover:bg-toss-hoverBlue active:scale-[0.98] text-white rounded-2xl p-4 shadow-xl shadow-toss-blue/30 flex items-center justify-between transition-all">
+            <div class="flex items-center gap-3">
+                <div id="cart-bar-qty" class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
+                    0
+                </div>
+                <div class="text-left">
+                    <p class="text-xs text-blue-100 font-medium">담은 메뉴 보기</p>
+                    <p class="text-base font-bold">장바구니 확인</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 font-extrabold text-lg">
+                <span id="cart-bar-price">0원</span>
+                <svg class="w-5 h-5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </div>
+        </button>
+    </div>
+</div>
+
+<!-- ================= 1. 옵션 선택 바텀 시트 (Modal) ================= -->
+<div id="option-modal-backdrop" class="fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm" onclick="closeOptionModal()"></div>
+
+<div id="option-bottom-sheet" class="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-white rounded-t-[32px] shadow-2xl transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[85vh]">
+    <div class="p-4 pb-2 flex items-center justify-between border-b border-toss-border/40 shrink-0">
+        <div class="w-12 h-1 bg-slate-300 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-3"></div>
+        <span class="text-sm font-bold text-toss-dark pt-2">메뉴 상세 설정</span>
+        <button onclick="closeOptionModal()" class="p-1 rounded-full text-toss-gray hover:text-toss-dark hover:bg-toss-lightGray transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+
+    <div class="overflow-y-auto p-6 space-y-6 flex-1">
+        <div>
+            <h3 id="modal-menu-name" class="text-2xl font-bold text-toss-dark">비빔냉면</h3>
+            <p id="modal-menu-desc" class="text-sm text-toss-gray mt-1">메뉴 설명</p>
+            <div id="modal-menu-price" class="text-lg font-extrabold text-toss-blue mt-2">0원</div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 단일 선택 옵션 (라디오) -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-bold text-toss-dark">필수 선택</h4>
+                <span class="text-[11px] font-bold text-toss-blue bg-toss-lightBlue px-2 py-0.5 rounded-full">필수 1개</span>
+            </div>
+            <div id="single-option-list" class="space-y-2"></div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 다중 추가 옵션 (체크박스) -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-bold text-toss-dark">추가 옵션</h4>
+                <span class="text-[11px] font-medium text-toss-gray bg-toss-lightGray px-2 py-0.5 rounded-full">중복 가능</span>
+            </div>
+            <div id="multi-option-list" class="space-y-2"></div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 옵션 모달 수량 조절 -->
+        <div class="flex items-center justify-between py-2">
+            <span class="font-bold text-sm text-toss-dark">주문 수량</span>
+            <div class="flex items-center bg-toss-lightGray rounded-2xl p-1 gap-3">
+                <button onclick="changeModalQty(-1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center font-bold text-sm text-toss-dark shadow-sm active:scale-95 transition">-</button>
+                <span id="modal-qty" class="font-extrabold text-base w-6 text-center text-toss-dark">1</span>
+                <button onclick="changeModalQty(1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center font-bold text-sm text-toss-dark shadow-sm active:scale-95 transition">+</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-5 border-t border-toss-border/60 bg-white shrink-0">
+        <button onclick="confirmAddToCart()" class="w-full bg-toss-blue hover:bg-toss-hoverBlue active:scale-[0.98] text-white py-4 rounded-2xl font-bold flex items-center justify-between px-6 shadow-lg shadow-toss-blue/20 transition-all">
+            <span id="modal-total-calc-qty">1개 담기</span>
+            <span id="modal-total-calc-price">0원</span>
+        </button>
+    </div>
+</div>
+
+<!-- ================= 2. 토스 스타일 장바구니 팝업 (Cart Modal) ================= -->
+<div id="cart-modal-backdrop" class="fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm" onclick="closeCartModal()"></div>
+
+<div id="cart-bottom-sheet" class="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-white rounded-t-[32px] shadow-2xl transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[85vh]">
+    <!-- 상단 타이틀 바 -->
+    <div class="px-6 py-4 flex items-center justify-between border-b border-toss-border/40 shrink-0">
+        <div class="flex items-center gap-2">
+            <h3 class="text-xl font-bold text-toss-dark">장바구니</h3>
+            <span id="cart-items-count-badge" class="text-xs font-bold text-toss-blue bg-toss-lightBlue px-2.5 py-0.5 rounded-full">0</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="clearCart()" class="text-xs font-medium text-toss-gray hover:text-toss-red transition">
+                전체 삭제
+            </button>
+            <button onclick="closeCartModal()" class="p-1 rounded-full text-toss-gray hover:text-toss-dark hover:bg-toss-lightGray transition">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 장바구니 스크롤 아이템 목록 -->
+    <div id="cart-items-container" class="overflow-y-auto p-6 space-y-4 flex-1">
+        <!-- JS 렌더링 -->
+    </div>
+
+    <!-- 하단 결제 요약 및 주문하기 버튼 -->
+    <div id="cart-footer" class="p-6 border-t border-toss-border/60 bg-white shrink-0 space-y-4">
+        <div class="space-y-2">
+            <div class="flex justify-between items-center text-sm text-toss-gray font-medium">
+                <span>주문 테이블</span>
+                <span class="text-toss-dark font-bold">5번 테이블</span>
+            </div>
+            <div class="flex justify-between items-center text-sm text-toss-gray font-medium">
+                <span>총 주문 금액</span>
+                <span id="cart-modal-total-price" class="text-xl font-black text-toss-dark">0원</span>
+            </div>
+        </div>
+
+        <button onclick="submitOrder()" class="w-full bg-toss-blue hover:bg-toss-hoverBlue active:scale-[0.98] text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-toss-blue/20 transition-all">
+            <span>주문 접수하기</span>
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+    // 메뉴 데이터
+    const menuData = [
+        {
+            id: 'm1',
+            name: '비빔냉면',
+            desc: '자가제면한 쫄깃한 면발과 매콤달콤한 특제 비빔 양념장의 조화',
+            price: 9000,
+            image: 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=600&auto=format&fit=crop&q=80',
+            badge: '대표',
+            singleOptions: {
+                title: '맵기 선택',
+                items: [
+                    { id: 'sp1', name: '보통맛 (신라면 맵기)', price: 0, default: true },
+                    { id: 'sp2', name: '매운맛 (열라면 맵기)', price: 500 },
+                    { id: 'sp3', name: '아주 매운맛 (불닭 맵기)', price: 1000 }
+                ]
+            },
+            multiOptions: {
+                title: '추가 선택',
+                items: [
+                    { id: 'ex1', name: '면 곱빼기 추가', price: 2000 },
+                    { id: 'ex2', name: '삶은 계란 추가 (1개)', price: 800 },
+                    { id: 'ex3', name: '공기밥 추가', price: 1000 }
+                ]
+            }
+        },
+        {
+            id: 'm2',
+            name: '수제 돈까스',
+            desc: '국내산 생등심을 24시간 숙성해 바삭하게 튀겨낸 클래식 돈까스',
+            price: 11000,
+            image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+            badge: '인기',
+            singleOptions: {
+                title: '소스 선택',
+                items: [
+                    { id: 'sc1', name: '오리지널 데미 소스', price: 0, default: true },
+                    { id: 'sc2', name: '매콤 카레 소스', price: 1000 },
+                    { id: 'sc3', name: '생와사비 & 소금 세트', price: 500 }
+                ]
+            },
+            multiOptions: {
+                title: '사이드 추가',
+                items: [
+                    { id: 'ex4', name: '공기밥 추가', price: 1000 },
+                    { id: 'ex5', name: '미니 우동 추가', price: 2500 },
+                    { id: 'ex6', name: '체다 치즈 토핑', price: 1500 }
+                ]
+            }
+        }
+    ];
+
+    // 옵션 모달 임시 상태
+    let activeMenu = null;
+    let selectedSingleOption = null;
+    let selectedMultiOptions = new Set();
+    let currentQty = 1;
+
+    // 장바구니 리스트
+    let cart = [];
+
+    // 메뉴 카드 렌더링
+    function renderMenuCards() {
+        const grid = document.getElementById('menu-grid');
+        grid.innerHTML = menuData.map(menu => `
+            <div class="bg-white rounded-3xl overflow-hidden border border-toss-border/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                <div class="relative overflow-hidden aspect-[16/10] bg-slate-100">
+                    <img src="${menu.image}" alt="${menu.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+                    ${menu.badge ? `<span class="absolute top-3 left-3 bg-toss-blue text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">${menu.badge}</span>` : ''}
+                </div>
+                <div class="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-toss-dark">${menu.name}</h3>
+                        <p class="text-sm text-toss-gray mt-1 leading-snug line-clamp-2">${menu.desc}</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-5 pt-3 border-t border-slate-100">
+                        <span class="text-xl font-extrabold text-toss-dark">${menu.price.toLocaleString()}원</span>
+                        <button onclick="openOptionModal('${menu.id}')" class="px-4 py-2 rounded-xl bg-toss-lightBlue hover:bg-blue-100 active:scale-95 text-toss-blue font-bold text-sm transition">
+                            옵션선택
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 옵션 모달 제어
+    function openOptionModal(menuId) {
+        activeMenu = menuData.find(m => m.id === menuId);
+        if (!activeMenu) return;
+
+        selectedSingleOption = activeMenu.singleOptions.items.find(i => i.default) || activeMenu.singleOptions.items[0];
+        selectedMultiOptions.clear();
+        currentQty = 1;
+
+        document.getElementById('modal-menu-name').innerText = activeMenu.name;
+        document.getElementById('modal-menu-desc').innerText = activeMenu.desc;
+        document.getElementById('modal-menu-price').innerText = `${activeMenu.price.toLocaleString()}원`;
+        document.getElementById('modal-qty').innerText = currentQty;
+
+        // 라디오 단일 선택
+        document.getElementById('single-option-list').innerHTML = activeMenu.singleOptions.items.map(item => `
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-toss-border/80 hover:bg-slate-50 cursor-pointer transition select-none has-[:checked]:border-toss-blue has-[:checked]:bg-toss-lightBlue/30">
+                <div class="flex items-center gap-3">
+                    <input type="radio" name="single-option" value="${item.id}" ${item.id === selectedSingleOption.id ? 'checked' : ''} onchange="onSingleOptionChange('${item.id}')" class="w-4 h-4 text-toss-blue accent-toss-blue">
+                    <span class="text-sm font-medium text-toss-dark">${item.name}</span>
+                </div>
+                <span class="text-sm font-semibold text-toss-gray">${item.price > 0 ? `+${item.price.toLocaleString()}원` : '기본'}</span>
+            </label>
+        `).join('');
+
+        // 체크박스 다중 선택
+        document.getElementById('multi-option-list').innerHTML = activeMenu.multiOptions.items.map(item => `
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-toss-border/80 hover:bg-slate-50 cursor-pointer transition select-none has-[:checked]:border-toss-blue has-[:checked]:bg-toss-lightBlue/30">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" value="${item.id}" onchange="onMultiOptionChange('${item.id}', this.checked)" class="w-4 h-4 rounded text-toss-blue accent-toss-blue">
+                    <span class="text-sm font-medium text-toss-dark">${item.name}</span>
+                </div>
+                <span class="text-sm font-semibold text-toss-blue">+${item.price.toLocaleString()}원</span>
+            </label>
+        `).join('');
+
+        updateModalPriceCalculation();
+
+        document.getElementById('option-modal-backdrop').classList.remove('pointer-events-none', 'opacity-0');
+        document.getElementById('option-bottom-sheet').classList.remove('translate-y-full');
+    }
+
+    function closeOptionModal() {
+        document.getElementById('option-modal-backdrop').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('option-bottom-sheet').classList.add('translate-y-full');
+    }
+
+    function onSingleOptionChange(itemId) {
+        selectedSingleOption = activeMenu.singleOptions.items.find(i => i.id === itemId);
+        updateModalPriceCalculation();
+    }
+
+    function onMultiOptionChange(itemId, isChecked) {
+        if (isChecked) selectedMultiOptions.add(itemId);
+        else selectedMultiOptions.delete(itemId);
+        updateModalPriceCalculation();
+    }
+
+    function changeModalQty(delta) {
+        currentQty = Math.max(1, currentQty + delta);
+        document.getElementById('modal-qty').innerText = currentQty;
+        updateModalPriceCalculation();
+    }
+
+    function getItemUnitPrice() {
+        if (!activeMenu) return 0;
+        let unit = activeMenu.price;
+        if (selectedSingleOption) unit += selectedSingleOption.price;
+        selectedMultiOptions.forEach(optId => {
+            const opt = activeMenu.multiOptions.items.find(i => i.id === optId);
+            if (opt) unit += opt.price;
+        });
+        return unit;
+    }
+
+    function updateModalPriceCalculation() {
+        const total = getItemUnitPrice() * currentQty;
+        document.getElementById('modal-total-calc-qty').innerText = `${currentQty}개 담기`;
+        document.getElementById('modal-total-calc-price').innerText = `${total.toLocaleString()}원`;
+    }
+
+    // 옵션 모달에서 장바구니에 추가
+    function confirmAddToCart() {
+        const chosenMultiItems = activeMenu.multiOptions.items.filter(i => selectedMultiOptions.has(i.id));
+
+        cart.push({
+            cartId: Date.now() + Math.random(),
+            menuName: activeMenu.name,
+            unitPrice: getItemUnitPrice(),
+            qty: currentQty,
+            singleOption: selectedSingleOption.name,
+            multiOptions: chosenMultiItems.map(i => i.name)
+        });
+
+        updateCartState();
+        closeOptionModal();
+    }
+
+    // 장바구니 모달 열기/닫기
+    function openCartModal() {
+        renderCartItems();
+        document.getElementById('cart-modal-backdrop').classList.remove('pointer-events-none', 'opacity-0');
+        document.getElementById('cart-bottom-sheet').classList.remove('translate-y-full');
+    }
+
+    function closeCartModal() {
+        document.getElementById('cart-modal-backdrop').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('cart-bottom-sheet').classList.add('translate-y-full');
+    }
+
+    // 장바구니 내부 항목 렌더링
+    function renderCartItems() {
+        const container = document.getElementById('cart-items-container');
+        const countBadge = document.getElementById('cart-items-count-badge');
+        const totalPriceEl = document.getElementById('cart-modal-total-price');
+        const footer = document.getElementById('cart-footer');
+
+        countBadge.innerText = cart.length;
+
+        if (cart.length === 0) {
+            container.innerHTML = `
+                <div class="py-12 text-center">
+                    <p class="text-4xl mb-3">🛒</p>
+                    <p class="font-bold text-toss-dark">장바구니가 비어 있습니다</p>
+                    <p class="text-xs text-toss-gray mt-1">맛있는 메뉴를 골라 담아보세요</p>
+                </div>
+            `;
+            footer.classList.add('hidden');
+            return;
+        }
+
+        footer.classList.remove('hidden');
+
+        container.innerHTML = cart.map(item => `
+            <div class="p-4 bg-toss-bg rounded-2xl border border-toss-border/60 flex items-start justify-between gap-4">
+                <div class="space-y-1">
+                    <h4 class="font-bold text-base text-toss-dark">${item.menuName}</h4>
+                    <p class="text-xs text-toss-gray font-medium">선택: ${item.singleOption}</p>
+                    ${item.multiOptions.length > 0 ? `<p class="text-xs text-toss-blue font-medium">추가: ${item.multiOptions.join(', ')}</p>` : ''}
+                    <p class="text-sm font-extrabold text-toss-dark pt-1">${(item.unitPrice * item.qty).toLocaleString()}원</p>
+                </div>
+                <!-- 수량 조절 버튼 -->
+                <div class="flex items-center bg-white rounded-xl border border-toss-border/80 p-0.5 shadow-sm">
+                    <button onclick="updateCartItemQty(${item.cartId}, -1)" class="w-7 h-7 flex items-center justify-center font-bold text-sm text-toss-gray hover:text-toss-dark active:scale-95 transition">-</button>
+                    <span class="w-6 text-center text-xs font-bold text-toss-dark">${item.qty}</span>
+                    <button onclick="updateCartItemQty(${item.cartId}, 1)" class="w-7 h-7 flex items-center justify-center font-bold text-sm text-toss-blue hover:text-toss-hoverBlue active:scale-95 transition">+</button>
+                </div>
+            </div>
+        `).join('');
+
+        const totalCartPrice = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
+        totalPriceEl.innerText = `${totalCartPrice.toLocaleString()}원`;
+    }
+
+    // 장바구니 수량 증감
+    function updateCartItemQty(cartId, delta) {
+        const item = cart.find(i => i.cartId === cartId);
+        if (!item) return;
+
+        item.qty += delta;
+        if (item.qty <= 0) {
+            cart = cart.filter(i => i.cartId !== cartId);
+        }
+        updateCartState();
+        renderCartItems();
+    }
+
+    // 장바구니 비우기
+    function clearCart() {
+        if (!confirm('장바구니의 모든 메뉴를 삭제하시겠습니까?')) return;
+        cart = [];
+        updateCartState();
+        renderCartItems();
+    }
+
+    // 하단 장바구니 바 표시/숨김 및 금액 갱신
+    function updateCartState() {
+        const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+        const totalPrice = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
+
+        const floatBar = document.getElementById('floating-cart-bar');
+        if (cart.length > 0) {
+            floatBar.classList.remove('translate-y-28', 'opacity-0');
+            document.getElementById('cart-bar-qty').innerText = totalQty;
+            document.getElementById('cart-bar-price').innerText = `${totalPrice.toLocaleString()}원`;
+        } else {
+            floatBar.classList.add('translate-y-28', 'opacity-0');
+        }
+    }
+
+    // 최종 주문 접수
+    function submitOrder() {
+        const totalPrice = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
+        alert(`주문이 성공적으로 접수되었습니다!\n\n• 테이블: 5번\n• 총 결제금액: ${totalPrice.toLocaleString()}원\n\n주방에서 맛있게 조리를 시작합니다.`);
+        cart = [];
+        updateCartState();
+        closeCartModal();
+    }
+
+    // 초기화
+    renderMenuCards();
+</script>
+
+</body>
+</html>

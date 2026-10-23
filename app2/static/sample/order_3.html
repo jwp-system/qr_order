@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>맛있는 식당 - QR 주문</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toss: {
+                            blue: '#3182F6',
+                            hoverBlue: '#1B64DA',
+                            lightBlue: '#E8F3FF',
+                            dark: '#191F28',
+                            gray: '#8B95A1',
+                            lightGray: '#F2F4F6',
+                            border: '#E5E8EB',
+                            bg: '#F9FAFB'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-toss-bg text-toss-dark font-sans antialiased min-h-screen pb-28">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-toss-border/60">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold tracking-tight text-toss-dark">맛있는 식당</h1>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    주문가능
+                </span>
+            </div>
+            <p class="text-xs text-toss-gray mt-0.5 font-medium">테이블 <span class="text-toss-dark font-bold">5번</span> • 비대면 주문</p>
+        </div>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="max-w-5xl mx-auto px-5 pt-6 space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-toss-dark">대표 메뉴</h2>
+        <span class="text-xs text-toss-gray">메뉴를 선택해 옵션을 조절하세요</span>
+    </div>
+
+    <!-- 메뉴 카드 리스트 -->
+    <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- JS로 동적 생성 -->
+    </div>
+</main>
+
+<!-- Floating Cart Bar (하단 장바구니 바) -->
+<div class="fixed bottom-0 inset-x-0 p-4 z-30 pointer-events-none">
+    <div class="max-w-md mx-auto pointer-events-auto">
+        <button id="cart-bar-btn" class="w-full bg-toss-blue hover:bg-toss-hoverBlue active:scale-[0.98] text-white rounded-2xl p-4 shadow-xl shadow-toss-blue/30 flex items-center justify-between transition-all">
+            <div class="flex items-center gap-3">
+                <div id="cart-total-qty" class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
+                    0
+                </div>
+                <div class="text-left">
+                    <p class="text-xs text-blue-100 font-medium">담은 메뉴 보기</p>
+                    <p class="text-base font-bold">주문서 확인하기</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 font-extrabold text-lg">
+                <span id="cart-total-price">0원</span>
+                <svg class="w-5 h-5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </div>
+        </button>
+    </div>
+</div>
+
+<!-- ================= 토스 스타일 옵션 선택 바텀 시트 (Modal) ================= -->
+<div id="option-modal-backdrop" class="fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm" onclick="closeOptionModal()"></div>
+
+<div id="option-bottom-sheet" class="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-white rounded-t-[32px] shadow-2xl transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[88vh]">
+    <!-- 드래그 핸들 바 & 닫기 -->
+    <div class="p-4 pb-2 flex items-center justify-between border-b border-toss-border/40 shrink-0">
+        <div class="w-12 h-1 bg-slate-300 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-3"></div>
+        <span class="text-sm font-bold text-toss-dark pt-2">메뉴 상세 설정</span>
+        <button onclick="closeOptionModal()" class="p-1 rounded-full text-toss-gray hover:text-toss-dark hover:bg-toss-lightGray transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+
+    <!-- 스크롤 옵션 내용 영역 -->
+    <div class="overflow-y-auto p-6 space-y-6 flex-1">
+        <!-- 메뉴 요약 -->
+        <div>
+            <h3 id="modal-menu-name" class="text-2xl font-bold text-toss-dark">비빔냉면</h3>
+            <p id="modal-menu-desc" class="text-sm text-toss-gray mt-1">자가제면한 쫄깃한 면발과 매콤달콤한 특제 양념장</p>
+            <div id="modal-menu-price" class="text-lg font-extrabold text-toss-blue mt-2">9,000원</div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 1. 단일 선택형 옵션 (라디오: 맵기 등) -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-bold text-toss-dark">맵기 선택</h4>
+                <span class="text-[11px] font-bold text-toss-blue bg-toss-lightBlue px-2 py-0.5 rounded-full">필수 1개</span>
+            </div>
+            <div id="single-option-list" class="space-y-2">
+                <!-- JS 렌더링 -->
+            </div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 2. 다중 추가형 옵션 (체크박스: 사이드/토핑 추가) -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-bold text-toss-dark">추가 옵션</h4>
+                <span class="text-[11px] font-medium text-toss-gray bg-toss-lightGray px-2 py-0.5 rounded-full">중복 선택 가능</span>
+            </div>
+            <div id="multi-option-list" class="space-y-2">
+                <!-- JS 렌더링 -->
+            </div>
+        </div>
+
+        <hr class="border-toss-border/60">
+
+        <!-- 수량 조절 버튼 -->
+        <div class="flex items-center justify-between py-2">
+            <span class="font-bold text-sm text-toss-dark">주문 수량</span>
+            <div class="flex items-center bg-toss-lightGray rounded-2xl p-1 gap-3">
+                <button onclick="changeModalQty(-1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center font-bold text-sm text-toss-dark shadow-sm active:scale-95 transition">-</button>
+                <span id="modal-qty" class="font-extrabold text-base w-6 text-center text-toss-dark">1</span>
+                <button onclick="changeModalQty(1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center font-bold text-sm text-toss-dark shadow-sm active:scale-95 transition">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 담기 완료 액션 버튼 -->
+    <div class="p-5 border-t border-toss-border/60 bg-white shrink-0">
+        <button onclick="confirmAddToCart()" class="w-full bg-toss-blue hover:bg-toss-hoverBlue active:scale-[0.98] text-white py-4 rounded-2xl font-bold flex items-center justify-between px-6 shadow-lg shadow-toss-blue/20 transition-all">
+            <span id="modal-total-calc-qty">1개 담기</span>
+            <span id="modal-total-calc-price">9,000원</span>
+        </button>
+    </div>
+</div>
+
+<script>
+    // 메뉴 데이터 정의 (단일 선택 및 다중 선택 옵션 포함)
+    const menuData = [
+        {
+            id: 'm1',
+            name: '비빔냉면',
+            desc: '자가제면한 쫄깃한 면발과 매콤달콤한 특제 비빔 양념장의 조화',
+            price: 9000,
+            image: 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=600&auto=format&fit=crop&q=80',
+            badge: '대표',
+            singleOptions: {
+                title: '맵기 선택',
+                items: [
+                    { id: 'sp1', name: '보통맛 (신라면 맵기)', price: 0, default: true },
+                    { id: 'sp2', name: '매운맛 (열라면 맵기)', price: 500 },
+                    { id: 'sp3', name: '아주 매운맛 (불닭 맵기)', price: 1000 }
+                ]
+            },
+            multiOptions: {
+                title: '추가 선택',
+                items: [
+                    { id: 'ex1', name: '면 곱빼기 추가', price: 2000 },
+                    { id: 'ex2', name: '삶은 계란 추가 (1개)', price: 800 },
+                    { id: 'ex3', name: '공기밥 추가', price: 1000 }
+                ]
+            }
+        },
+        {
+            id: 'm2',
+            name: '수제 돈까스',
+            desc: '국내산 생등심을 24시간 숙성해 바삭하게 튀겨낸 클래식 돈까스',
+            price: 11000,
+            image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+            badge: '인기',
+            singleOptions: {
+                title: '소스 선택',
+                items: [
+                    { id: 'sc1', name: '오리지널 데미 소스', price: 0, default: true },
+                    { id: 'sc2', name: '매콤 카레 소스', price: 1000 },
+                    { id: 'sc3', name: '생와사비 & 소금 세트', price: 500 }
+                ]
+            },
+            multiOptions: {
+                title: '사이드 추가',
+                items: [
+                    { id: 'ex4', name: '공기밥 추가', price: 1000 },
+                    { id: 'ex5', name: '미니 우동 추가', price: 2500 },
+                    { id: 'ex6', name: '체다 치즈 토핑', price: 1500 }
+                ]
+            }
+        }
+    ];
+
+    // 현재 모달에서 선택 중인 상태값
+    let activeMenu = null;
+    let selectedSingleOption = null;
+    let selectedMultiOptions = new Set();
+    let currentQty = 1;
+
+    // 장바구니 상태
+    let cart = [];
+
+    // 메뉴 카드 렌더링
+    function renderMenuCards() {
+        const grid = document.getElementById('menu-grid');
+        grid.innerHTML = menuData.map(menu => `
+            <div class="bg-white rounded-3xl overflow-hidden border border-toss-border/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                <div class="relative overflow-hidden aspect-[16/10] bg-slate-100">
+                    <img src="${menu.image}" alt="${menu.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+                    ${menu.badge ? `<span class="absolute top-3 left-3 bg-toss-blue text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">${menu.badge}</span>` : ''}
+                </div>
+                <div class="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-toss-dark">${menu.name}</h3>
+                        <p class="text-sm text-toss-gray mt-1 leading-snug line-clamp-2">${menu.desc}</p>
+                    </div>
+                    <div class="flex items-center justify-between mt-5 pt-3 border-t border-slate-100">
+                        <span class="text-xl font-extrabold text-toss-dark">${menu.price.toLocaleString()}원</span>
+                        <button onclick="openOptionModal('${menu.id}')" class="px-4 py-2 rounded-xl bg-toss-lightBlue hover:bg-blue-100 active:scale-95 text-toss-blue font-bold text-sm transition">
+                            옵션선택
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 모달 열기
+    function openOptionModal(menuId) {
+        activeMenu = menuData.find(m => m.id === menuId);
+        if (!activeMenu) return;
+
+        // 초기화
+        const defaultSingle = activeMenu.singleOptions.items.find(i => i.default) || activeMenu.singleOptions.items[0];
+        selectedSingleOption = defaultSingle;
+        selectedMultiOptions.clear();
+        currentQty = 1;
+
+        // 텍스트 반영
+        document.getElementById('modal-menu-name').innerText = activeMenu.name;
+        document.getElementById('modal-menu-desc').innerText = activeMenu.desc;
+        document.getElementById('modal-menu-price').innerText = `${activeMenu.price.toLocaleString()}원`;
+        document.getElementById('modal-qty').innerText = currentQty;
+
+        // 단일 옵션 목록 렌더링
+        const singleContainer = document.getElementById('single-option-list');
+        singleContainer.innerHTML = activeMenu.singleOptions.items.map(item => `
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-toss-border/80 hover:bg-slate-50 cursor-pointer transition select-none has-[:checked]:border-toss-blue has-[:checked]:bg-toss-lightBlue/30">
+                <div class="flex items-center gap-3">
+                    <input type="radio" name="single-option" value="${item.id}" ${item.id === selectedSingleOption.id ? 'checked' : ''} onchange="onSingleOptionChange('${item.id}')" class="w-4 h-4 text-toss-blue accent-toss-blue">
+                    <span class="text-sm font-medium text-toss-dark">${item.name}</span>
+                </div>
+                <span class="text-sm font-semibold text-toss-gray">${item.price > 0 ? `+${item.price.toLocaleString()}원` : '기본'}</span>
+            </label>
+        `).join('');
+
+        // 다중 추가 옵션 목록 렌더링
+        const multiContainer = document.getElementById('multi-option-list');
+        multiContainer.innerHTML = activeMenu.multiOptions.items.map(item => `
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-toss-border/80 hover:bg-slate-50 cursor-pointer transition select-none has-[:checked]:border-toss-blue has-[:checked]:bg-toss-lightBlue/30">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" value="${item.id}" onchange="onMultiOptionChange('${item.id}', this.checked)" class="w-4 h-4 rounded text-toss-blue accent-toss-blue">
+                    <span class="text-sm font-medium text-toss-dark">${item.name}</span>
+                </div>
+                <span class="text-sm font-semibold text-toss-blue">+${item.price.toLocaleString()}원</span>
+            </label>
+        `).join('');
+
+        updateModalPriceCalculation();
+
+        // 바텀시트 활성화 애니메이션
+        const backdrop = document.getElementById('option-modal-backdrop');
+        const sheet = document.getElementById('option-bottom-sheet');
+        backdrop.classList.remove('pointer-events-none', 'opacity-0');
+        sheet.classList.remove('translate-y-full');
+    }
+
+    // 모달 닫기
+    function closeOptionModal() {
+        const backdrop = document.getElementById('option-modal-backdrop');
+        const sheet = document.getElementById('option-bottom-sheet');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+        sheet.classList.add('translate-y-full');
+    }
+
+    // 옵션 변경 이벤트
+    function onSingleOptionChange(itemId) {
+        selectedSingleOption = activeMenu.singleOptions.items.find(i => i.id === itemId);
+        updateModalPriceCalculation();
+    }
+
+    function onMultiOptionChange(itemId, isChecked) {
+        if (isChecked) {
+            selectedMultiOptions.add(itemId);
+        } else {
+            selectedMultiOptions.delete(itemId);
+        }
+        updateModalPriceCalculation();
+    }
+
+    function changeModalQty(delta) {
+        currentQty = Math.max(1, currentQty + delta);
+        document.getElementById('modal-qty').innerText = currentQty;
+        updateModalPriceCalculation();
+    }
+
+    // 단가 + 옵션 합산 가격 계산기
+    function calculateItemPrice() {
+        if (!activeMenu) return 0;
+        let itemUnitTotal = activeMenu.price;
+
+        if (selectedSingleOption) {
+            itemUnitTotal += selectedSingleOption.price;
+        }
+
+        selectedMultiOptions.forEach(optId => {
+            const opt = activeMenu.multiOptions.items.find(i => i.id === optId);
+            if (opt) itemUnitTotal += opt.price;
+        });
+
+        return itemUnitTotal * currentQty;
+    }
+
+    function updateModalPriceCalculation() {
+        const total = calculateItemPrice();
+        document.getElementById('modal-total-calc-qty').innerText = `${currentQty}개 담기`;
+        document.getElementById('modal-total-calc-price').innerText = `${total.toLocaleString()}원`;
+    }
+
+    // 장바구니 담기 완료
+    function confirmAddToCart() {
+        const chosenMultiItems = activeMenu.multiOptions.items.filter(i => selectedMultiOptions.has(i.id));
+
+        cart.push({
+            menuName: activeMenu.name,
+            qty: currentQty,
+            singleOption: selectedSingleOption.name,
+            multiOptions: chosenMultiItems.map(i => i.name),
+            totalPrice: calculateItemPrice()
+        });
+
+        // 하단 플로팅 장바구니 바 업데이트
+        const totalCartQty = cart.reduce((sum, item) => sum + item.qty, 0);
+        const totalCartPrice = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+
+        document.getElementById('cart-total-qty').innerText = totalCartQty;
+        document.getElementById('cart-total-price').innerText = `${totalCartPrice.toLocaleString()}원`;
+
+        // 팝 바운스 애니메이션
+        const cartBtn = document.getElementById('cart-bar-btn');
+        cartBtn.classList.add('scale-105');
+        setTimeout(() => cartBtn.classList.remove('scale-105'), 200);
+
+        closeOptionModal();
+    }
+
+    // 최초 실행
+    renderMenuCards();
+</script>
+
+</body>
+</html>
