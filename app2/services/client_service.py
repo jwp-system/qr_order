@@ -102,15 +102,16 @@ async def get_table_orders(db: AsyncSession, table_id: int) -> list[Order]:
 # =====================================================================
 # 화면용 컨텍스트 (라우터를 얇게 유지하기 위한 조합 함수)
 # =====================================================================
-async def get_active_order_count(db, qr_token:str) -> dict:
-    """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
+async def get_active_order_count(db: AsyncSession, qr_token: str) -> dict:
+    """진행 중 주문 건수 배지용 경량 컨텍스트 (주문 변경 이벤트마다 호출되므로 최소한만 조회)"""
     table = await get_active_table_by_token(
-        db, qr_token, load_store=True, not_found_status=status.HTTP_404_NOT_FOUND
+        db, qr_token, not_found_status=status.HTTP_404_NOT_FOUND
     )
     return {
         "qr_token": qr_token,
         "active_order_count": await count_table_active_orders(db, table.id),
     }
+
 
 async def get_menu_context(db: AsyncSession, qr_token: str) -> dict:
     """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
@@ -281,7 +282,7 @@ async def create_order(
         order = await _save_order(
             db, table, cart_items, items_by_id, special_instruction, total_price
         )
-        await notify_order_changed(db, table.store_id, order.id, order.status)  # 커밋 후 전달
+        await notify_order_changed(db, table.store_id, table.id, order.id, order.status)  # 커밋 후 전달
         await db.commit()
     except SQLAlchemyError:
         await db.rollback()

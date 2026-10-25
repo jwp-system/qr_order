@@ -1,14 +1,18 @@
-# app/core/security.py
+# app2/core/security.py
 import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
+from urllib.parse import quote
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 
 from app2.core.config import settings
 from app2.domain.roles import Role  # security.Role 로도 import 가능 (하위 호환)
+
+
+_STAFF_ROLES = frozenset(r.value for r in Role)
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -71,11 +75,15 @@ def get_current_staff_session(request: Request) -> Dict[str, Any]:
     if not token:
         raise _unauthorized("로그인이 필요한 페이지입니다.")
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise _unauthorized("세션이 만료되었습니다.")
     except jwt.PyJWTError:
         raise _unauthorized("유효하지 않은 세션입니다.")
+    # 같은 키로 서명된 다른 종류의 토큰(슈퍼 관리자 등)은 스태프 세션으로 인정하지 않는다
+    if payload.get("role") not in _STAFF_ROLES or not isinstance(payload.get("store_id"), int):
+        raise _unauthorized("유효하지 않은 세션입니다.")
+    return payload
 
 
 # =====================================================================
@@ -99,3 +107,70 @@ class RequireStaffRole:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="해당 화면에 접근할 권한이 없습니다.",
         )
+
+
+# =====================================================================
+# 5. 시스템(슈퍼) 관리자 세션 (/super/*)
+# =====================================================================
+SUPER_ROLE = "super"  # 스태프 Role과 분리: ROLE_TARGETS 등 스태프 권한 표에는 존재하지 않는다
+
+
+def verify_super_password(plain: str) -> bool:
+    expected = settings.SUPER_ADMIN_PASSWORD
+    if not expected:
+        return False
+    return hmac.compare_digest(plain.encode("utf-8"), expected.encode("utf-8"))
+
+
+def _super_fingerprint() -> str:
+    """현재 비밀번호의 지문. 토큰에 넣어 두면 비밀번호를 바꿨을 때 기존 세션이 모두 무효가 된다."""
+    key = settings.SECRET_KEY.encode("utf-8")
+    msg = (settings.SUPER_ADMIN_PASSWORD or "").encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:16]
+
+
+def create_super_session_token() -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=settings.SUPER_SESSION_MAX_AGE_SECONDS)
+    payload = {"role": SUPER_ROLE, "pwd": _super_fingerprint(), "exp": expire}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _super_login_required(request: Request) -> HTTPException:
+    """요청 종류별 응답: 화면 이동은 로그인으로 리다이렉트, HTMX는 HX-Redirect, 그 외는 401"""
+    if request.headers.get("HX-Request"):
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="시스템 관리자 로그인이 필요합니다.",
+            headers={"HX-Redirect": "/super/login"},
+        )
+    if request.method == "GET":
+        return HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            detail="시스템 관리자 로그인이 필요합니다.",
+            headers={"Location": f"/super/login?next={quote(request.url.path, safe='/')}"},
+        )
+    return _unauthorized("시스템 관리자 로그인이 필요합니다.")
+
+
+def require_super_admin(request: Request) -> Dict[str, Any]:
+    """/super/* 보호용 FastAPI Dependency.
+    SUPER_ADMIN_PASSWORD가 설정되지 않았으면 모든 요청을 막는다(fail-closed)."""
+    if not settings.SUPER_ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="시스템 관리자 기능이 비활성화되어 있습니다. SUPER_ADMIN_PASSWORD를 설정하세요.",
+        )
+    token = request.cookies.get(settings.SUPER_SESSION_COOKIE_NAME)
+    payload = None
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        except jwt.PyJWTError:
+            payload = None
+    if (
+        not payload
+        or payload.get("role") != SUPER_ROLE
+        or not hmac.compare_digest(str(payload.get("pwd", "")), _super_fingerprint())
+    ):
+        raise _super_login_required(request)
+    return payload

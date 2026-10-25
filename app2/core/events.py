@@ -3,7 +3,9 @@
 흐름
   1. 서비스가 주문을 생성/변경하면 같은 트랜잭션 안에서 notify_order_changed() 호출
      (pg_notify는 커밋될 때만 전달되고, 롤백되면 전달되지 않는다)
-  2. 각 워커의 broker가 LISTEN 연결로 알림을 받아 해당 매장 구독자들의 큐에 넣는다
+  2. 각 워커의 broker가 LISTEN 연결로 알림을 받아 구독자들의 큐에 넣는다
+     - 매장 스코프(store_scope): 직원 보드(관리자/주방/홀)
+     - 테이블 스코프(table_scope): 해당 테이블의 고객 화면
   3. routers/events.py의 SSE 스트림이 큐에서 꺼내 브라우저로 전송한다
 
 여러 uvicorn 워커로 띄워도 DB를 통해 모든 워커가 같은 알림을 받는다.
@@ -34,11 +36,16 @@ QUEUE_SIZE = 32
 # 발행 (서비스에서 사용)
 # =====================================================================
 async def notify_order_changed(
-    db: AsyncSession, store_id: int, order_id: int, status
+    db: AsyncSession, store_id: int, table_id: int, order_id: int, status
 ) -> None:
     """커밋 직전에 호출. 같은 트랜잭션에서 NOTIFY 하므로 커밋 후에만 전달된다."""
     payload = json.dumps(
-        {"store_id": store_id, "order_id": order_id, "status": getattr(status, "value", status)}
+        {
+            "store_id": store_id,
+            "table_id": table_id,
+            "order_id": order_id,
+            "status": getattr(status, "value", status),
+        }
     )
     await db.execute(
         text("SELECT pg_notify(:channel, :payload)"),
@@ -49,6 +56,18 @@ async def notify_order_changed(
 # =====================================================================
 # 구독 (SSE 라우터에서 사용)
 # =====================================================================
+# 구독 범위: ("store", store_id) 또는 ("table", table_id)
+Scope = tuple[str, int]
+
+
+def store_scope(store_id: int) -> Scope:
+    return ("store", store_id)
+
+
+def table_scope(table_id: int) -> Scope:
+    return ("table", table_id)
+
+
 def _frame(event: str, data: str) -> str:
     return f"event: {event}\ndata: {data}\n\n"
 
@@ -61,7 +80,7 @@ def _listen_dsn() -> str:
 
 class OrderEventBroker:
     def __init__(self) -> None:
-        self._subs: dict[int, set[asyncio.Queue]] = {}
+        self._subs: dict[Scope, set[asyncio.Queue]] = {}
         self._task: asyncio.Task | None = None
 
     # ---------- lifecycle ----------
@@ -92,25 +111,29 @@ class OrderEventBroker:
             pass  # 이미 대기 중인 신호가 있으므로 버려도 된다
 
     def _dispatch(self, payload: str) -> None:
-        """NOTIFY payload -> 해당 매장 구독자"""
+        """NOTIFY payload -> 해당 매장 구독자 + 해당 테이블 구독자"""
         try:
-            store_id = int(json.loads(payload)["store_id"])
-        except (ValueError, KeyError, TypeError):
+            data = json.loads(payload)
+            scopes = [store_scope(int(data["store_id"]))]
+            if data.get("table_id") is not None:
+                scopes.append(table_scope(int(data["table_id"])))
+        except (ValueError, KeyError, TypeError, AttributeError):
             logger.warning("잘못된 order_events payload: %r", payload)
             return
-        for q in list(self._subs.get(store_id, ())):
-            self._put(q, ("order_changed", payload))
+        for scope in scopes:
+            for q in list(self._subs.get(scope, ())):
+                self._put(q, ("order_changed", payload))
 
     def _broadcast_sync(self) -> None:
         for queues in list(self._subs.values()):
             for q in list(queues):
                 self._put(q, ("sync", "{}"))
 
-    async def subscribe(self, store_id: int) -> AsyncIterator[str]:
-        """매장 단위 SSE 프레임 스트림.
+    async def subscribe(self, scope: Scope) -> AsyncIterator[str]:
+        """범위(매장/테이블) 단위 SSE 프레임 스트림.
         연결 직후 sync 한 번: 재연결 중 놓친 변경을 클라이언트가 다시 가져오게 한다."""
         q: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
-        self._subs.setdefault(store_id, set()).add(q)
+        self._subs.setdefault(scope, set()).add(q)
         try:
             yield "retry: 3000\n\n"
             yield _frame("sync", "{}")
@@ -124,11 +147,11 @@ class OrderEventBroker:
                     return
                 yield _frame(*item)
         finally:
-            subs = self._subs.get(store_id)
+            subs = self._subs.get(scope)
             if subs is not None:
                 subs.discard(q)
                 if not subs:
-                    self._subs.pop(store_id, None)
+                    self._subs.pop(scope, None)
 
     # ---------- LISTEN 연결 ----------
     def _on_notify(self, connection, pid, channel, payload) -> None:

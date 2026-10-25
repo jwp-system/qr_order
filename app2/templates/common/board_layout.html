@@ -1,7 +1,7 @@
 {# common/board_layout.html — 보드 공통 레이아웃 (관리자 / 주방 / 홀)
    context: store, orders, board
    확장 지점: toolbar (보드 위 영역), page_scripts (페이지 전용 스크립트)
-   갱신 방식: 주기적 폴링 없이, 서버가 SSE로 변경 신호를 보내면 static/js/board_live.js가
+   갱신 방식: 주기적 폴링 없이, 서버가 SSE로 변경 신호를 보내면 static/js/staff/board_live.js가
    'board-refresh' 이벤트를 발생시키고 HTMX가 목록을 다시 가져온다. #}
 {% extends "base.html" %}
 
@@ -21,7 +21,7 @@
 <div class="max-w-6xl mx-auto py-2">
     {% block toolbar %}{% endblock %}
 
-    {# board-refresh: 변경 신호 수신 시 board_live.js가 발생. delay로 연속 변경을 한 번의 요청으로 합친다.
+    {# board-refresh: 변경 신호 수신 시 staff/board_live.js가 발생. delay로 연속 변경을 한 번의 요청으로 합친다.
        store_id를 함께 보내 다른 매장 페이지에서도 같은 매장의 주문을 갱신한다. #}
     <div id="board-container"
          data-events-url="/events/stores/{{ store.id }}"
@@ -31,6 +31,7 @@
         {% include "common/order_grid.html" %}
     </div>
 </div>
-<script src="/static/js/board_live.js" defer></script>
+<script src="{{ url_for('static', path='js/live_events.js') }}" defer></script>
+<script src="{{ url_for('static', path='js/staff/board_live.js') }}" defer></script>
 {% block page_scripts %}{% endblock %}
 {% endblock %}

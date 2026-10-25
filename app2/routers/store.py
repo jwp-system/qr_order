@@ -1,9 +1,11 @@
 """식당용 API (관리자 / 주방 KDS / 홀 서빙)
 
-URL은 기존과 동일하게 유지:
-  /admin/...   매장 관리자
-  /kitchen/... 주방
-  /hall/...    홀
+  /admin/...   매장 관리자 (주문 현황 + 상태 변경)
+  /kitchen/... 주방 보드
+  /hall/...    홀 서빙 보드
+
+모든 상태 변경은 공통 카드 버튼이 호출하는 POST /admin/orders/{id}/advance 하나로 처리한다
+(역할 권한 + 전이 규칙 검증은 services/store_service.change_status_by_role).
 """
 from typing import Optional
 
@@ -17,8 +19,6 @@ from app2.database.models import OrderStatus
 from app2.database.session import get_db
 from app2.domain.roles import Role
 from app2.services import store_service as svc
-
-S = OrderStatus
 
 admin_router = APIRouter(prefix="/admin", tags=["Store Admin"])
 kitchen_router = APIRouter(prefix="/kitchen", tags=["Kitchen KDS"])
@@ -67,12 +67,6 @@ async def admin_orders_feed(
     )
 
 
-@admin_router.post("/orders/{order_id}/accept", response_class=HTMLResponse)
-async def accept_order(request: Request, order_id: int, db: AsyncSession = Depends(get_db)):
-    """ORDERED -> ACCEPTED"""
-    return render_card(request, await svc.change_status(db, order_id, S.ACCEPTED), Role.ADMIN.value)
-
-
 @admin_router.post("/orders/{order_id}/advance", response_class=HTMLResponse)
 async def advance_order(
     request: Request,
@@ -85,19 +79,6 @@ async def advance_order(
     role 권한 검증 -> 전이 검증 -> 변경. 해당 역할 보드에서 사라질 상태면 카드 제거."""
     order, visible = await svc.change_status_by_role(db, order_id, target, role)
     return render_card(request, order, role.value) if visible else _empty()
-
-
-@admin_router.post("/orders/{order_id}/cancel", response_class=HTMLResponse)
-async def cancel_order(request: Request, order_id: int, db: AsyncSession = Depends(get_db)):
-    """-> CANCELLED"""
-    return render_card(request, await svc.change_status(db, order_id, S.CANCELLED), Role.ADMIN.value)
-
-
-@admin_router.post("/orders/{order_id}/complete", response_class=HTMLResponse)
-async def complete_order(order_id: int, db: AsyncSession = Depends(get_db)):
-    """SERVED -> COMPLETED (보드에서 카드 제거)"""
-    await svc.change_status(db, order_id, S.COMPLETED)
-    return _empty()
 
 
 # =====================================================================
@@ -124,20 +105,6 @@ async def kitchen_feed(request: Request, store_id: int = 1, db: AsyncSession = D
     )
 
 
-@kitchen_router.post("/orders/{order_id}/start", response_class=HTMLResponse)
-async def start_cooking(request: Request, order_id: int, db: AsyncSession = Depends(get_db)):
-    """조리 시작: ACCEPTED -> COOKING"""
-    order = await svc.change_status(db, order_id, S.COOKING)
-    return render_card(request, order, Role.KITCHEN.value)
-
-
-@kitchen_router.post("/orders/{order_id}/done", response_class=HTMLResponse)
-async def finish_cooking(order_id: int, db: AsyncSession = Depends(get_db)):
-    """조리 완료: COOKING -> COOKED (KDS에서 티켓 제거)"""
-    await svc.change_status(db, order_id, S.COOKED)
-    return _empty()
-
-
 # =====================================================================
 # Hall  (/hall)
 # =====================================================================
@@ -160,13 +127,6 @@ async def hall_feed(request: Request, store_id: int = 1, db: AsyncSession = Depe
         name="common/order_grid.html",
         context={"orders": orders, "board": BOARDS["hall"], "now": now()},
     )
-
-
-@hall_router.post("/orders/{order_id}/serve", response_class=HTMLResponse)
-async def complete_serving(order_id: int, db: AsyncSession = Depends(get_db)):
-    """서빙 완료: COOKED -> SERVED (홀 화면에서 티켓 제거)"""
-    await svc.change_status(db, order_id, S.SERVED)
-    return _empty()
 
 
 # --- 하위 라우터 등록 ---

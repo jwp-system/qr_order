@@ -15,4 +15,12 @@
     </main>
 
     {% include "client/partials/cart_bar.html" %}
+
+    {# 실시간 갱신(SSE) 설정: 이 테이블의 주문이 바뀌면 헤더 배지와 열린 주문 현황 모달이 갱신된다 #}
+    <div id="live-config" hidden data-events-url="/events/tables/{{ qr_token|urlencode }}"></div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', path='js/live_events.js') }}" defer></script>
+    <script src="{{ url_for('static', path='js/client/live.js') }}" defer></script>
 {% endblock %}

@@ -1,0 +1,57 @@
+{# super_admin/login.html — 시스템 관리자 로그인 (비밀번호)
+   context: next, error, enabled #}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>시스템 관리자 | QR Order</title>
+    <link rel="stylesheet" crossorigin
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: {
+            sans: ['Pretendard Variable', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+        } } } }
+    </script>
+</head>
+<body class="bg-[#F8F9FA] text-gray-900 font-sans antialiased min-h-screen flex items-center justify-center p-4">
+<main class="w-full max-w-sm">
+    <div class="flex items-center justify-center gap-2.5 mb-6 select-none">
+        <div class="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white font-bold text-lg shadow-sm">Q</div>
+        <h1 class="text-xl font-bold tracking-tight">QR Order <span class="text-gray-400 font-semibold">System</span></h1>
+    </div>
+
+    <form method="post" action="/super/login"
+          class="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div>
+            <h2 class="text-lg font-bold">시스템 관리자 로그인</h2>
+            <p class="text-sm text-gray-500 mt-1">매장 관리 권한이 있는 관리자만 접근할 수 있습니다.</p>
+        </div>
+
+        {% if error %}
+            <div role="alert"
+                 class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <div>
+            <label for="password" class="block text-xs font-bold text-gray-500 mb-1.5">비밀번호</label>
+            <input type="password" id="password" name="password" required
+                   autocomplete="current-password" {% if enabled %}autofocus{% else %}disabled{% endif %}
+                   class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base
+                          focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white disabled:opacity-50">
+        </div>
+
+        <button type="submit" {% if not enabled %}disabled{% endif %}
+                class="w-full rounded-xl bg-gray-900 hover:bg-black active:scale-[0.98] text-white font-bold py-3.5 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            로그인
+        </button>
+    </form>
+</main>
+</body>
+</html>

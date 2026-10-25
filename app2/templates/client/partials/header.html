@@ -8,9 +8,11 @@
             <h1 class="text-xl font-bold tracking-tight text-[#191F28] mt-1">{{ store.name }}</h1>
         </div>
 
+        {# table-refresh: static/js/client_live.js가 이 테이블의 주문 변경 이벤트에서 body로 발생시킨다.
+           주기적 폴링 없이, 변경이 있을 때만 배지(#order-active)를 다시 가져온다. #}
         <div class="flex items-center gap-2"
             hx-get="/orders/active?qr_token={{ qr_token }}"
-            hx-trigger="every 10s"
+            hx-trigger="table-refresh from:body delay:300ms"
             hx-target="#order-active"
             hx-swap="innerHTML">
             <button type="button"
@@ -18,13 +20,7 @@
                     hx-target="#modal-container"
                     class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-95 transition flex items-center gap-1.5">
                 <span>주문 내역</span>
-                <div id="order-active">
-                {% if active_order_count and active_order_count > 0 %}
-                    <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
-                        {{ active_order_count }}
-                    </span>
-                {% endif %}
-                </div>
+                <span id="order-active">{% include "client/fragments/order_status_active.html" %}</span>
             </button>
 
             <button type="button"

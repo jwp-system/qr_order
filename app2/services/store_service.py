@@ -11,7 +11,6 @@ from app2.database.models import Order, OrderItem, OrderStatus, Store
 from app2.domain.order_status import (
     ACTIVE_STATUSES,  # 라우터에서 svc.ACTIVE_STATUSES로 사용
     ROLE_VIEW_STATUSES,
-    STATUS_META,
     InvalidTransition,
     can_role_change,
     stays_on_board,
@@ -116,7 +115,7 @@ async def _transition(db: AsyncSession, order: Order, target: OrderStatus) -> Or
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
     order.status = target
-    await notify_order_changed(db, order.store_id, order.id, target)  # 커밋 후 전달
+    await notify_order_changed(db, order.store_id, order.table_id, order.id, target)  # 커밋 후 전달
     await db.commit()
     return await _reload_order(db, order.id)
 
@@ -126,17 +125,6 @@ async def change_status(
 ) -> Order:
     """조회(잠금) -> 전이 검증 -> 저장."""
     order = await get_order_or_404(db, order_id)
-    return await _transition(db, order, target)
-
-
-async def advance_status(db: AsyncSession, order_id: int) -> Order:
-    """STATUS_META.next 기준으로 다음 단계로 진행.
-    조회 시 잡은 잠금을 풀지 않고 그대로 전이까지 수행한다."""
-    order = await get_order_or_404(db, order_id)
-    target = STATUS_META[order.status].next
-    if target is None:
-        await db.rollback()
-        raise HTTPException(status_code=409, detail="더 이상 진행할 수 없는 상태입니다.")
     return await _transition(db, order, target)
 
 

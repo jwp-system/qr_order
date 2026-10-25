@@ -18,7 +18,6 @@ templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
 def _debug_print(*args, **kwargs) -> str:
     """템플릿 디버그용. DEBUG일 때만 출력하고, 항상 빈 문자열 반환(렌더에 'None'이 찍히지 않도록)."""
-    print("***devug print")
     if settings.DEBUG:
         print(*args, **kwargs)
     return ""

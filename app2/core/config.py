@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
+    # --- 시스템(슈퍼) 관리자: /super/* ---
+    # 미설정(또는 빈 값)이면 /super 전체가 비활성화(503)된다 (인증 없이 열리는 일이 없도록 fail-closed).
+    SUPER_ADMIN_PASSWORD: str | None = None
+    SUPER_SESSION_COOKIE_NAME: str = "quickorder_super"
+    SUPER_SESSION_MAX_AGE_SECONDS: int = 60 * 60 * 8  # 8시간
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SESSION_COOKIE_SECURE(self) -> bool:
@@ -83,6 +89,12 @@ class Settings(BaseSettings):
     def _check_production_secrets(self) -> "Settings":
         if self.ENVIRONMENT == "production" and self.SECRET_KEY == _INSECURE_SECRET_KEY:
             raise ValueError("production 환경에서는 SECRET_KEY를 반드시 변경해야 합니다.")
+        if (
+            self.ENVIRONMENT == "production"
+            and self.SUPER_ADMIN_PASSWORD
+            and len(self.SUPER_ADMIN_PASSWORD) < 12
+        ):
+            raise ValueError("production 환경의 SUPER_ADMIN_PASSWORD는 12자 이상이어야 합니다.")
         return self
 
 
