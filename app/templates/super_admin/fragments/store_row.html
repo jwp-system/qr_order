@@ -30,6 +30,11 @@
                 {% endfor %}
             </select>
         </form>
+        {% if store.license_status.value == 'EXPIRED' and store.expired_on %}
+            <p class="text-[11px] text-gray-400 mt-1">
+                종료 {{ store.expired_on.isoformat() }} · 조회 {{ readonly_until(store.expired_on).isoformat() }}까지
+            </p>
+        {% endif %}
     </td>
     <td class="px-5 py-4 text-xs text-gray-400">
         {{ store.created_at.strftime('%Y-%m-%d') if store.created_at else '-' }}

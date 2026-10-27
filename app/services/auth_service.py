@@ -4,8 +4,10 @@ from urllib.parse import urlsplit
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import business_today
 from app.core.security import hash_pin, verify_pin
-from app.database.models import LicenseStatus, Store
+from app.database.models import Store
+from app.domain.license import StoreAccess, readonly_until, store_access
 from app.domain.roles import Role
 
 PIN_LENGTH = 4
@@ -65,8 +67,9 @@ def safe_next_path(value: str | None) -> str | None:
 
 async def authenticate_staff(
     db: AsyncSession, service_code: str, role: Role, pin: str
-) -> Store:
-    """매장 코드 + 역할 + PIN 확인. 실패하면 StaffAuthError."""
+) -> tuple[Store, StoreAccess]:
+    """매장 코드 + 역할 + PIN 확인. 실패하면 StaffAuthError.
+    서비스 종료 매장은 조회 기간 안에 관리자만 READONLY로 통과한다."""
     store = (
         await db.execute(select(Store).where(Store.service_code == service_code))
     ).scalar_one_or_none()
@@ -76,13 +79,21 @@ async def authenticate_staff(
         raise StaffAuthError(INVALID_CREDENTIALS, status_code=401)
 
     # PIN이 맞은 뒤에 확인한다 (코드/PIN을 모르는 사람에게 매장 상태가 드러나지 않도록)
-    if store.license_status == LicenseStatus.EXPIRED:
+    access = store_access(store.license_status, store.expired_on, business_today())
+    if access is StoreAccess.CLOSED:
         raise StaffAuthError(
-            "라이선스가 만료되었습니다. 시스템 관리자에게 문의해 주세요.",
+            "서비스가 종료되었고 조회 기간도 끝났습니다. 시스템 관리자에게 문의해 주세요.",
             status_code=403,
             counts_as_failure=False,
         )
-    return store
+    if access is StoreAccess.READONLY and role is not Role.ADMIN:
+        until = readonly_until(store.expired_on or business_today())
+        raise StaffAuthError(
+            f"서비스가 종료된 매장입니다. {until:%Y-%m-%d}까지 관리자만 주문 내역과 메뉴를 조회할 수 있습니다.",
+            status_code=403,
+            counts_as_failure=False,
+        )
+    return store, access
 
 
 # =====================================================================

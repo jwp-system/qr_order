@@ -1,8 +1,9 @@
 # app/database/models.py
 import enum
+from datetime import date, datetime
 from typing import List, Optional
 from sqlalchemy import (
-    String, Integer, Boolean, ForeignKey, Text, Enum, UniqueConstraint, Index, false
+    String, Integer, Boolean, Date, DateTime, ForeignKey, Text, Enum, UniqueConstraint, Index, false, true
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +27,13 @@ class TableStatus(str, enum.Enum):
     PAUSED = "PAUSED"         # 주문 중지: QR로 메뉴/주문 내역은 보이지만 새 주문 불가 (브레이크 타임, 예약석 등)
     DISABLED = "DISABLED"     # 사용 안 함: QR 접속 불가
 
+class InquiryCategory(str, enum.Enum):
+    INTRO = "INTRO"          # 도입 문의
+    TRIAL = "TRIAL"          # 트라이얼·데모 요청
+    SUPPORT = "SUPPORT"      # 사용 중 문의
+    FEATURE = "FEATURE"      # 기능 요청
+    ETC = "ETC"              # 기타
+
 class LicenseStatus(str, enum.Enum):
     TRIAL = "TRIAL"
     ACTIVE = "ACTIVE"
@@ -41,6 +49,8 @@ class Store(Base, TimestampMixin):
     license_status: Mapped[LicenseStatus] = mapped_column(
         Enum(LicenseStatus), default=LicenseStatus.TRIAL, nullable=False
     )
+    # 서비스 종료일 (EXPIRED로 바뀐 영업일). 이날부터 1개월간 조회 전용 (domain/license.py)
+    expired_on: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     admin_pin: Mapped[str] = mapped_column(String(64), nullable=False)   # 해시 저장
     kitchen_pin: Mapped[str] = mapped_column(String(64), nullable=False) # 해시 저장
     hall_pin: Mapped[str] = mapped_column(String(64), nullable=False)    # 해시 저장
@@ -173,3 +183,31 @@ class OrderItemOption(Base, TimestampMixin):
     option_name: Mapped[str] = mapped_column(String(50), nullable=False)      # 스냅샷
     additional_price: Mapped[int] = mapped_column(Integer, default=0, nullable=False) # 스냅샷
     order_item: Mapped["OrderItem"] = relationship(back_populates="options")
+
+class Inquiry(Base, TimestampMixin):
+    """문의. 연락처는 공개하지 않고 시스템 관리자만 본다.
+    store_id 없음: 랜딩 공개 게시판(/inquiries) 글 / store_id 있음: 매장 관리자 화면(/admin/support)에서 남긴 사용 중 문의 (게시판 비공개)"""
+    __tablename__ = "inquiries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    store_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("stores.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    category: Mapped[InquiryCategory] = mapped_column(Enum(InquiryCategory), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    author_name: Mapped[str] = mapped_column(String(30), nullable=False)
+    store_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    contact: Mapped[str] = mapped_column(String(100), nullable=False)          # 비공개 (전화 또는 이메일)
+    password_hash: Mapped[str] = mapped_column(String(200), nullable=False)    # 비밀글 열람용 (pbkdf2)
+    is_private: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    answered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    answer_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)  # 매장이 답변을 확인한 시각
+
+    store: Mapped[Optional["Store"]] = relationship()
+
+    @property
+    def has_new_answer(self) -> bool:
+        """매장이 아직 확인하지 않은 답변이 있는가"""
+        return bool(self.answered_at) and (self.answer_seen_at is None or self.answer_seen_at < self.answered_at)

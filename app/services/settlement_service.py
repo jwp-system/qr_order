@@ -7,15 +7,14 @@
 """
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
+from app.core.clock import business_today, day_start_utc
 from app.core.events import notify_order_changed
 from app.database.models import Order, OrderItem, OrderStatus, Table, TableStatus
 from app.domain.order_status import ACTIVE_STATUSES, validate_transition
@@ -112,16 +111,10 @@ async def get_table_summaries(db: AsyncSession, store_id: int) -> list[TableSumm
     ]
 
 
-def _today_start_utc() -> datetime:
-    tz = ZoneInfo(settings.BUSINESS_TIMEZONE)
-    local_midnight = datetime.combine(datetime.now(tz).date(), time.min, tzinfo=tz)
-    return local_midnight.astimezone(timezone.utc)
-
-
 async def get_today_summary(db: AsyncSession, store_id: int) -> TodaySummary:
     """오늘(영업 시간대 기준) 마감/취소된 주문. 종료 상태는 더 바뀌지 않으므로 updated_at이 마감/취소 시각이다."""
-    start = _today_start_utc()
-    end = start + timedelta(days=1)
+    today = business_today()
+    start, end = day_start_utc(today), day_start_utc(today + timedelta(days=1))
     is_completed = Order.status == OrderStatus.COMPLETED
     row = (
         await db.execute(

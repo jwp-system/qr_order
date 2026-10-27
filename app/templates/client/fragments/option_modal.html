@@ -39,9 +39,11 @@
                     <label class="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 hover:bg-blue-50/40 cursor-pointer transition">
                         <div class="flex items-center space-x-2.5">
                             {% if group.option_type.value == 'SELECT' %}
-                            <input type="radio" 
-                                   name="group_{{ group.id }}" 
+                            {# 단일 선택은 첫 번째 옵션이 기본 선택 (cart.js optionData의 defaultOptions와 같음) #}
+                            <input type="radio"
+                                   name="group_{{ group.id }}"
                                    value="{{ detail.id }}"
+                                   {% if loop.first %}checked{% endif %}
                                    @change="
                                         selectedOptions = selectedOptions.filter(o => o.groupId !== {{ group.id }});
                                         selectedOptions.push({ groupId: {{ group.id }}, name: {{ detail.name|tojson|forceescape }}, price: {{ detail.additional_price }} });

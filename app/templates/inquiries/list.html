@@ -1,0 +1,57 @@
+{# inquiries/list.html — 문의 게시판 목록  (레이아웃: public/base.html)
+   context: result (InquiryPage), category (선택된 분류 | None), created (방금 작성함) #}
+{% extends "public/base.html" %}
+
+{% block title %}문의 게시판 - {{ SITE.name }}{% endblock %}
+
+{% block content %}
+{% set type_q = '&type=' ~ INQUIRY_CATEGORIES[category].query if category else '' %}
+<section class="px-5 py-14">
+    <div class="max-w-3xl mx-auto space-y-6">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight">문의 게시판</h1>
+                <p class="text-sm text-toss-gray font-medium mt-1">도입, 트라이얼, 사용 중 궁금한 점을 남겨 주세요. 개발자가 직접 답변합니다.</p>
+            </div>
+            <a href="/inquiries/new{{ '?type=' ~ INQUIRY_CATEGORIES[category].query if category else '' }}"
+               class="px-5 py-3 rounded-2xl bg-toss-blue hover:bg-toss-hoverBlue text-white font-bold text-sm transition">문의하기</a>
+        </div>
+
+        {% if created %}
+            <div role="status" class="rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">
+                문의가 등록되었습니다. 답변이 등록되면 이 게시판에서 확인하실 수 있고, 필요하면 남겨 주신 연락처로 연락드립니다.
+            </div>
+        {% endif %}
+
+        {# 분류 #}
+        <nav class="flex flex-wrap gap-2" aria-label="문의 분류">
+            <a href="/inquiries" {% if not category %}aria-current="page"{% endif %}
+               class="px-3.5 py-1.5 rounded-full text-sm font-semibold border {{ 'bg-toss-dark text-white border-toss-dark' if not category else 'bg-white text-toss-gray border-toss-border hover:text-toss-dark' }}">전체</a>
+            {% for cat, meta in INQUIRY_CATEGORIES.items() %}
+                <a href="/inquiries?type={{ meta.query }}" {% if cat == category %}aria-current="page"{% endif %}
+                   class="px-3.5 py-1.5 rounded-full text-sm font-semibold border {{ 'bg-toss-dark text-white border-toss-dark' if cat == category else 'bg-white text-toss-gray border-toss-border hover:text-toss-dark' }}">{{ meta.label }}</a>
+            {% endfor %}
+        </nav>
+
+        {% if result.items %}
+            {% with items = result.items %}{% include "inquiries/_list.html" %}{% endwith %}
+            {% if result.pages > 1 %}
+                <nav class="flex items-center justify-center gap-2 text-sm" aria-label="페이지">
+                    {% if result.page > 1 %}
+                        <a href="/inquiries?page={{ result.page - 1 }}{{ type_q }}" class="px-3 py-1.5 rounded-lg bg-white border border-toss-border hover:bg-toss-bg font-semibold">이전</a>
+                    {% endif %}
+                    <span class="text-toss-gray font-medium">{{ result.page }} / {{ result.pages }}</span>
+                    {% if result.page < result.pages %}
+                        <a href="/inquiries?page={{ result.page + 1 }}{{ type_q }}" class="px-3 py-1.5 rounded-lg bg-white border border-toss-border hover:bg-toss-bg font-semibold">다음</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="py-16 text-center bg-toss-bg rounded-2xl border-2 border-dashed border-toss-border">
+                <p class="font-bold text-toss-gray">아직 등록된 문의가 없습니다.</p>
+                <p class="text-xs text-toss-gray mt-1">첫 문의를 남겨 주세요.</p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+{# store_admin/fragments/readonly_banner.html — 서비스 종료 후 조회 전용 세션일 때만 표시 #}
+{% set ro_until = staff_session(request).get('ro_until') %}
+{% if ro_until %}
+    <div role="status" class="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium px-4 py-3">
+        서비스가 종료되어 <strong>조회만</strong> 할 수 있습니다. <strong>{{ ro_until }}</strong>까지 주문 내역과 메뉴를 보실 수 있으니,
+        필요한 내역은 CSV로 저장해 두세요.
+    </div>
+{% endif %}

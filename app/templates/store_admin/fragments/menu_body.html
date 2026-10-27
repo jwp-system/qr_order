@@ -1,12 +1,14 @@
 {# store_admin/fragments/menu_body.html — 카테고리별 메뉴 목록 (#menu-body 내용)
    context: categories, error
-   카테고리 폼은 이 목록 전체를 다시 받아 교체한다. #}
+   카테고리 폼은 이 목록 전체를 다시 받아 교체한다. 조회 전용 세션이면 편집 버튼을 모두 숨긴다. #}
+{% set readonly = staff_session(request).get('ro_until') %}
 <div class="space-y-5">
     {% if error %}
         <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
     {% endif %}
 
     {# 상단: 안내 + 카테고리 추가 #}
+    {% if not readonly %}
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <p class="text-sm text-gray-500 font-medium">상태 버튼을 누르면 고객 메뉴에 바로 반영됩니다.</p>
         <form hx-post="/admin/menu/categories" hx-target="#menu-body" hx-swap="innerHTML"
@@ -19,6 +21,7 @@
             </button>
         </form>
     </div>
+    {% endif %}
 
     {% for cat in categories %}
         <section class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden" x-data="{ editing: false }">
@@ -39,7 +42,7 @@
                     <button type="button" @click="editing = false" class="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 text-xs font-semibold">취소</button>
                 </form>
 
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1.5 {{ 'hidden' if readonly else '' }}">
                     <button type="button"
                             hx-get="/admin/menu/items/new?category_id={{ cat.id }}" hx-target="#modal-container"
                             class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition">+ 메뉴 추가</button>

@@ -1,5 +1,7 @@
 {# store_admin/fragments/menu_item_row.html — 메뉴 한 줄 (상태 토글 응답으로도 단독 렌더)
-   context: item (option_groups 로드됨). 상태 버튼은 ITEM_FLAGS(domain/menu.py) 기준. #}
+   context: item (option_groups 로드됨). 상태 버튼은 ITEM_FLAGS(domain/menu.py) 기준.
+   조회 전용 세션이면 상태는 표시만 하고, 옵션 내용을 펼쳐 보여주며, 수정/삭제 버튼을 숨긴다. #}
+{% set readonly = staff_session(request).get('ro_until') %}
 {# 켜졌을 때 버튼 색 (Tailwind 스캔을 위해 완성된 문자열) #}
 {% set flag_on = {
   'is_sold_out':    'bg-red-500 text-white border-red-500',
@@ -28,6 +30,14 @@
             <p class="text-xs text-gray-400 truncate">
                 옵션 그룹 {{ item.option_groups | length }}개{% if item.description %} · {{ item.description }}{% endif %}
             </p>
+            {% if readonly %}
+                {% for g in item.option_groups %}
+                    <p class="text-xs text-gray-500">
+                        <strong>{{ g.name }}</strong>:
+                        {% for d in g.details %}{{ d.name }}{% if d.additional_price %}(+{{ "{:,}".format(d.additional_price) }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}
+                    </p>
+                {% endfor %}
+            {% endif %}
         </div>
     </div>
 
@@ -35,6 +45,9 @@
     <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="메뉴 상태">
         {% for flag, meta in ITEM_FLAGS.items() %}
             {% set on = item[flag] %}
+            {% if readonly %}
+                {% if on %}<span class="px-2.5 py-1 rounded-full border text-xs font-bold {{ flag_on[flag] }}">{{ meta.label }}</span>{% endif %}
+            {% else %}
             <button type="button"
                     hx-post="/admin/menu/items/{{ item.id }}/flags/{{ flag }}"
                     hx-target="#menu-item-{{ item.id }}" hx-swap="outerHTML"
@@ -44,11 +57,12 @@
                            {{ flag_on[flag] if on else 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600' }}">
                 {{ meta.label }}
             </button>
+            {% endif %}
         {% endfor %}
     </div>
 
     {# 수정 / 삭제 #}
-    <div class="flex items-center gap-1.5 shrink-0">
+    <div class="flex items-center gap-1.5 shrink-0 {{ 'hidden' if readonly else '' }}">
         <button type="button" hx-get="/admin/menu/items/{{ item.id }}" hx-target="#modal-container"
                 class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">수정</button>
         <button type="button"

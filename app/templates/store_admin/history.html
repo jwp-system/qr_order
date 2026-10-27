@@ -1,0 +1,129 @@
+{# store_admin/history.html — 주문 내역 조회 (운영 중 / 서비스 종료 후 조회 기간 공용)
+   context: store, f (HistoryFilter), notice, result (HistoryResult), status_filters, page_size
+   조회 조건은 일반 GET 폼이라 주소를 북마크/공유할 수 있다. CSV는 같은 조건 전체를 저장한다. #}
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 주문 내역{% endblock %}
+
+{% block header %}
+{% with active = 'history' %}{% include "store_admin/fragments/admin_header.html" %}{% endwith %}
+{% endblock %}
+
+{% block content %}
+{% set input_cls = 'rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500' %}
+{% set status_badge = {
+  'ORDERED':   'bg-blue-50 text-blue-600',
+  'ACCEPTED':  'bg-blue-50 text-blue-600',
+  'COOKING':   'bg-amber-50 text-amber-600',
+  'COOKED':    'bg-amber-50 text-amber-600',
+  'SERVED':    'bg-emerald-50 text-emerald-600',
+  'COMPLETED': 'bg-gray-100 text-gray-600',
+  'CANCELLED': 'bg-red-50 text-red-500',
+} %}
+<div class="max-w-5xl mx-auto py-2 space-y-4">
+    {% include "store_admin/fragments/readonly_banner.html" %}
+    {% if notice %}
+        <div role="status" class="rounded-xl bg-gray-50 border border-gray-200 text-gray-600 text-sm px-4 py-3">{{ notice }}</div>
+    {% endif %}
+
+    {# 조회 조건 #}
+    <form method="get" action="/admin/history"
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-end gap-3">
+        <label class="text-xs font-bold text-gray-500 space-y-1">
+            <span class="block">시작일</span>
+            <input type="date" name="date_from" value="{{ f.date_from.isoformat() }}" class="{{ input_cls }}">
+        </label>
+        <label class="text-xs font-bold text-gray-500 space-y-1">
+            <span class="block">종료일</span>
+            <input type="date" name="date_to" value="{{ f.date_to.isoformat() }}" class="{{ input_cls }}">
+        </label>
+        <label class="text-xs font-bold text-gray-500 space-y-1">
+            <span class="block">상태</span>
+            <select name="status" class="{{ input_cls }}">
+                {% for key, label, _ in status_filters %}
+                    <option value="{{ key }}" {% if key == f.status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="text-xs font-bold text-gray-500 space-y-1">
+            <span class="block">테이블</span>
+            <input type="number" name="table" min="1" value="{{ f.table_number or '' }}" placeholder="전체" class="{{ input_cls }} w-24">
+        </label>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">조회</button>
+        <a href="/admin/history.csv?{{ f.query_string(page='') }}"
+           class="ml-auto px-4 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-sm">CSV 저장</a>
+    </form>
+
+    {# 요약 #}
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <span class="text-xs font-bold text-gray-500">조회된 주문</span>
+            <div class="text-2xl font-black mt-1">{{ "{:,}".format(result.total_count) }}건</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <span class="text-xs font-bold text-gray-500">마감 매출</span>
+            <div class="text-2xl font-black mt-1">{{ "{:,}".format(result.completed_amount) }}원</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <span class="text-xs font-bold text-gray-500">마감</span>
+            <div class="text-2xl font-black mt-1">{{ "{:,}".format(result.completed_count) }}건</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <span class="text-xs font-bold text-gray-500">취소</span>
+            <div class="text-2xl font-black mt-1 text-red-500">{{ "{:,}".format(result.cancelled_count) }}건</div>
+        </div>
+    </section>
+
+    {# 목록 #}
+    {% if result.orders %}
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+            {% for o in result.orders %}
+                <details class="group">
+                    <summary class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 cursor-pointer list-none hover:bg-gray-50">
+                        <span class="text-xs text-gray-400 font-medium w-28">{{ o.created_at | local_dt('%m-%d %H:%M') }}</span>
+                        <span class="text-sm font-bold w-20">{{ o.table.table_number }} 테이블</span>
+                        <span class="flex-1 min-w-[10rem] text-sm text-gray-600 truncate">
+                            {% for item in o.items %}{{ item.item_name }} ×{{ item.quantity }}{{ ', ' if not loop.last }}{% endfor %}
+                        </span>
+                        <span class="text-sm font-bold {{ 'line-through text-gray-300' if o.status.value == 'CANCELLED' else '' }}">{{ "{:,}".format(o.total_price) }}원</span>
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ status_badge[o.status.value] }}">{{ STATUS_META[o.status].label }}</span>
+                    </summary>
+                    <div class="px-5 pb-4 pt-1 text-sm space-y-1.5 bg-gray-50/60">
+                        <p class="text-xs text-gray-400">주문 #{{ o.id }} · {{ o.created_at | local_dt }}</p>
+                        {% for item in o.items %}
+                            <div class="flex justify-between gap-3">
+                                <span>
+                                    {{ item.item_name }} ×{{ item.quantity }}
+                                    {% if item.options %}<span class="text-xs text-gray-400">({{ item.options | map(attribute='option_name') | join(', ') }})</span>{% endif %}
+                                </span>
+                                <span class="font-semibold">{{ "{:,}".format(item.subtotal_price) }}원</span>
+                            </div>
+                        {% endfor %}
+                        {% if o.special_instruction %}
+                            <p class="text-xs text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">요청사항: {{ o.special_instruction }}</p>
+                        {% endif %}
+                    </div>
+                </details>
+            {% endfor %}
+        </div>
+
+        {# 페이지 #}
+        {% if result.pages > 1 %}
+            <nav class="flex items-center justify-center gap-2 text-sm" aria-label="페이지">
+                {% if f.page > 1 %}
+                    <a href="/admin/history?{{ f.query_string(page=f.page - 1) }}" class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 font-semibold">이전</a>
+                {% endif %}
+                <span class="text-gray-500 font-medium">{{ f.page }} / {{ result.pages }}</span>
+                {% if f.page < result.pages %}
+                    <a href="/admin/history?{{ f.query_string(page=f.page + 1) }}" class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 font-semibold">다음</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="py-20 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="text-base font-bold text-gray-500">조건에 맞는 주문이 없습니다.</p>
+            <p class="text-xs text-gray-400 mt-1">기간이나 상태를 바꿔 다시 조회해 보세요.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

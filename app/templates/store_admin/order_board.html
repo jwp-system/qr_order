@@ -30,7 +30,7 @@
         <div class="flex items-center justify-between gap-4">
             <p class="text-sm text-gray-500 font-medium">신규 주문이 접수 되면 접수카드에 숫자가 표시됩니다.</p>
             <button type="button"
-                    hx-get="{{ board.feed_url }}?store_id={{ store.id }}"
+                    hx-get="{{ board.feed_url }}"
                     hx-target="#board-container"
                     hx-swap="innerHTML"
                     class="shrink-0 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs transition active:scale-95 shadow-sm">

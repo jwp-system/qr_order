@@ -1,6 +1,7 @@
 """식당용 API (관리자 / 주방 KDS / 홀 서빙) — 모두 스태프 로그인 필수.
 
-  /admin/...                    관리자 전용 (주문 현황, 테이블 정산 /admin/settlement)
+  /admin/board, /admin/feed     관리자 주문 현황 보드 (주방 /kitchen/board, 홀 /hall/board 와 같은 규칙)
+  /admin/...                    관리자 전용 (테이블 정산 /admin/settlement, 주문 내역 /admin/history)
   /kitchen/...                  주방 (+관리자)
   /hall/...                     홀 (+관리자)
   /staff/orders/{id}/advance    공통 카드 버튼이 호출하는 상태 변경 (관리자/주방/홀)
@@ -11,21 +12,32 @@
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.board_config import BOARDS
-from app.core.security import require_admin, require_hall, require_kitchen, require_staff
+from app.core.clock import business_today
+from app.core.security import (
+    readonly_until_of,
+    require_admin,
+    require_hall,
+    require_kitchen,
+    require_staff,
+)
 from app.core.templating import now, render_card, templates
 from app.database.models import OrderStatus
 from app.database.session import get_db
 from app.domain.roles import Role
-from app.services import settlement_service
+from app.routers.support import load_support_badge
+from app.services import history_service, settlement_service
 from app.services import store_service as svc
 
 Session = Dict[str, Any]
 
-admin_router = APIRouter(prefix="/admin", tags=["Store Admin"], dependencies=[Depends(require_admin)])
+admin_router = APIRouter(
+    prefix="/admin", tags=["Store Admin"],
+    dependencies=[Depends(require_admin), Depends(load_support_badge)],  # 헤더 '문의' 새 답변 배지
+)
 kitchen_router = APIRouter(prefix="/kitchen", tags=["Kitchen KDS"], dependencies=[Depends(require_kitchen)])
 hall_router = APIRouter(prefix="/hall", tags=["Hall Serving"], dependencies=[Depends(require_hall)])
 staff_router = APIRouter(prefix="/staff", tags=["Staff"], dependencies=[Depends(require_staff)])
@@ -42,8 +54,8 @@ def _empty() -> HTMLResponse:
 # =====================================================================
 # Admin  (/admin)
 # =====================================================================
-@admin_router.get("/orders", response_class=HTMLResponse)
-async def admin_orders_page(
+@admin_router.get("/board", response_class=HTMLResponse)
+async def admin_board(
     request: Request,
     session: Session = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
@@ -57,8 +69,14 @@ async def admin_orders_page(
     )
 
 
-@admin_router.get("/orders/feed", response_class=HTMLResponse)
-async def admin_orders_feed(
+@admin_router.get("/orders", include_in_schema=False)
+async def admin_orders_legacy():
+    """예전 주소(/admin/orders) 북마크 호환"""
+    return RedirectResponse(url="/admin/board", status_code=301)
+
+
+@admin_router.get("/feed", response_class=HTMLResponse)
+async def admin_feed(
     request: Request,
     order_status: Optional[OrderStatus] = None,  # ?order_status=COOKING
     session: Session = Depends(require_admin),
@@ -133,6 +151,54 @@ async def admin_close_table(
         request=request,
         name="store_admin/fragments/table_grid.html",
         context={**await _settlement_context(db, store_id), "flash": flash},
+    )
+
+
+# --- 주문 내역 (서비스 종료 후 조회 기간에도 사용) ---
+async def _history_filter(request: Request, db: AsyncSession, session: Session):
+    """조회 조건. 기본 기간은 오늘까지 (서비스 종료 매장은 종료일까지)"""
+    default_to = business_today()
+    if readonly_until_of(session):
+        store = await svc.get_store_or_404(db, session["store_id"])
+        default_to = min(default_to, store.expired_on or default_to)
+    return history_service.parse_filter(request.query_params, default_to)
+
+
+@admin_router.get("/history", response_class=HTMLResponse)
+async def admin_history_page(
+    request: Request,
+    session: Session = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await svc.get_store_or_404(db, session["store_id"])
+    flt, notice = await _history_filter(request, db, session)
+    return templates.TemplateResponse(
+        request=request,
+        name="store_admin/history.html",
+        context={
+            "store": store,
+            "f": flt,
+            "notice": notice,
+            "result": await history_service.search(db, store.id, flt),
+            "status_filters": history_service.STATUS_FILTERS,
+            "page_size": history_service.PAGE_SIZE,
+        },
+    )
+
+
+@admin_router.get("/history.csv")
+async def admin_history_csv(
+    request: Request,
+    session: Session = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    flt, _ = await _history_filter(request, db, session)
+    body = await history_service.export_csv(db, session["store_id"], flt)
+    filename = f"orders_{flt.date_from:%Y%m%d}-{flt.date_to:%Y%m%d}.csv"
+    return Response(
+        content=body.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
     )
 
 

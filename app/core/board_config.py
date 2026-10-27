@@ -39,7 +39,6 @@ BOARDS: dict[str, dict] = {
         Role.ADMIN,
         title="주문 현황",
         badge="매장 관리 모니터",
-        feed_url="/admin/orders/feed",
         empty_title="현재 처리할 주문 내역이 없습니다.",
         empty_desc="새로운 주문이 들어오면 실시간으로 표시됩니다.",
         theme={

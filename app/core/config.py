@@ -10,13 +10,22 @@ _INSECURE_SECRET_KEY = "quickorder-insecure-secret-key-change-in-production-1234
 
 class Settings(BaseSettings):
     # --- 애플리케이션 기본 정보 ---
-    PROJECT_NAME: str = "QuickOrder SaaS"
+    PROJECT_NAME: str = "QR Order"
     VERSION: str = "0.1.0"
     DEBUG: bool = False
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
     # 영업일 기준 시간대 (정산 화면의 '오늘' 매출 집계)
     BUSINESS_TIMEZONE: str = "Asia/Seoul"
+
+    # --- 랜딩 페이지 (/) ---
+    OPERATOR_NAME: str = "박종욱"                      # 운영자 (1인 개발/운영)
+    CONTACT_EMAIL: str = "jw.park363@gmail.com"       # 도입 문의 메일
+    BUSINESS_INFO: str | None = None                   # 하단 사업자 정보 한 줄 (상호 · 대표자 · 사업자등록번호 등)
+    # 데모 매장: 둘 다 설정되면 랜딩에 데모 QR과 직원 화면 링크를 보여준다. 없으면 '데모 요청' 버튼만.
+    DEMO_QR_TOKEN: str | None = None                   # 데모 매장 테이블의 qr_token
+    DEMO_SERVICE_CODE: str | None = None               # 데모 매장 코드 (직원 로그인 화면에 미리 채움)
+    DEMO_KITCHEN_PIN: str | None = None                # 데모 주방 PIN (공개해도 되는 값으로)
 
     # 테이블 QR에 넣을 고객 접속 주소 (예: https://order.example.com).
     # 비우면 관리자가 접속한 주소를 쓴다 (localhost로 접속하면 휴대폰에서 열리지 않으니 운영 시 설정할 것).

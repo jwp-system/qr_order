@@ -92,7 +92,8 @@ function optionData(data) {
         optionGroups: data.option_groups,
         basePrice: data.basePrice,
         quantity: 1,
-        selectedOptions: [],
+        // 단일 선택 그룹은 첫 번째 옵션이 기본 선택 (템플릿의 checked와 같은 값, 서버가 정해 준다)
+        selectedOptions: (data.defaultOptions || []).map(o => ({ ...o })),
         showAlert: false,
         selectedRequiredGroupName: '',
 

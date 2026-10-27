@@ -1,0 +1,18 @@
+{# inquiries/_list.html — 문의 목록 줄 (게시판 목록, 랜딩 '최근 문의' 공용)
+   context: items (Inquiry 목록). 연락처는 절대 내보내지 않는다. 작성자 이름은 가린다(mask_name). #}
+<ul class="bg-white rounded-2xl border border-toss-border divide-y divide-toss-border/70">
+    {% for q in items %}
+        <li>
+            <a href="/inquiries/{{ q.id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 hover:bg-toss-bg transition">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-toss-lightBlue text-toss-blue shrink-0">{{ INQUIRY_CATEGORIES[q.category].label }}</span>
+                <span class="flex-1 min-w-[10rem] font-semibold text-sm truncate">
+                    {% if q.is_private %}<span aria-label="비밀글">🔒</span> 비밀글입니다{% else %}{{ q.title }}{% endif %}
+                </span>
+                <span class="text-xs text-toss-gray">{{ q.author_name | mask_name }} · {{ q.created_at | local_dt('%Y-%m-%d') }}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-50 text-emerald-600' if q.answer else 'bg-toss-lightGray text-toss-gray' }}">
+                    {{ '답변 완료' if q.answer else '답변 대기' }}
+                </span>
+            </a>
+        </li>
+    {% endfor %}
+</ul>

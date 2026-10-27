@@ -26,12 +26,16 @@ from app.core.templating import templates
 from app.database.models import Item, OptionType
 from app.database.session import get_db
 from app.domain.menu import ITEM_FLAGS
+from app.routers.support import load_support_badge
 from app.services import menu_service as svc
 from app.services.store_service import get_store_or_404
 
 Session = Dict[str, Any]
 
-router = APIRouter(prefix="/admin/menu", tags=["Store Admin Menu"], dependencies=[Depends(require_admin)])
+router = APIRouter(
+    prefix="/admin/menu", tags=["Store Admin Menu"],
+    dependencies=[Depends(require_admin), Depends(load_support_badge)],  # 헤더 '문의' 새 답변 배지
+)
 
 MENU_CHANGED = "menu-changed"
 UNPROCESSABLE = 422

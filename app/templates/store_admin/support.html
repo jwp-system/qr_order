@@ -1,0 +1,106 @@
+{# store_admin/support.html — 매장 관리자 사용 중 문의 (/admin/support)
+   context: store, inquiries (이 매장 문의, 최신순), new_ids (이번에 처음 보는 답변의 문의 id), categories,
+            values (작성 칸 값: 지난번 이름/연락처 미리 채움), error, created
+   로그인한 매장으로 연결되므로 비밀번호가 없고, 공개 게시판에는 나오지 않는다. #}
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 문의{% endblock %}
+
+{% block header %}
+{% with active = 'support' %}{% include "store_admin/fragments/admin_header.html" %}{% endwith %}
+{% endblock %}
+
+{% block content %}
+{% set input_cls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white' %}
+{% set label_cls = 'block text-xs font-bold text-gray-500 mb-1.5' %}
+<div class="max-w-4xl mx-auto py-2 space-y-4">
+    {% include "store_admin/fragments/readonly_banner.html" %}
+    {% if created %}
+        <div role="status" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">
+            문의가 등록되었습니다. 답변이 오면 상단 '문의' 탭에 표시됩니다. 급한 일은 {{ SITE.email }}로도 연락 주세요.
+        </div>
+    {% endif %}
+    {% if error %}
+        <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
+    {% endif %}
+
+    <div class="grid lg:grid-cols-5 gap-4 items-start">
+        {# 작성 #}
+        <form method="post" action="/admin/support" class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+            <div>
+                <h2 class="text-base font-bold">문의하기</h2>
+                <p class="text-xs text-gray-500 mt-0.5">사용법, 오류, 필요한 기능을 남겨 주세요. 개발자가 직접 답변합니다.</p>
+            </div>
+            <div>
+                <label for="s-category" class="{{ label_cls }}">분류</label>
+                <select id="s-category" name="category" class="{{ input_cls }}">
+                    {% for cat in categories %}
+                        <option value="{{ cat.value }}" {% if values.get('category') == cat.value %}selected{% endif %}>{{ INQUIRY_CATEGORIES[cat].label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="s-name" class="{{ label_cls }}">이름</label>
+                    <input id="s-name" name="author_name" required maxlength="30" value="{{ values.get('author_name', '') }}" class="{{ input_cls }}">
+                </div>
+                <div>
+                    <label for="s-contact" class="{{ label_cls }}">연락처</label>
+                    <input id="s-contact" name="contact" required maxlength="100" value="{{ values.get('contact', '') }}" placeholder="전화 또는 이메일" class="{{ input_cls }}">
+                </div>
+            </div>
+            <div>
+                <label for="s-title" class="{{ label_cls }}">제목</label>
+                <input id="s-title" name="title" required maxlength="100" value="{{ values.get('title', '') }}" class="{{ input_cls }}">
+            </div>
+            <div>
+                <label for="s-content" class="{{ label_cls }}">내용</label>
+                <textarea id="s-content" name="content" required maxlength="2000" rows="6"
+                          placeholder="어떤 화면에서 무엇을 하다가 생긴 일인지 적어 주시면 빨리 확인할 수 있습니다."
+                          class="{{ input_cls }}">{{ values.get('content', '') }}</textarea>
+            </div>
+            <label class="flex items-start gap-2 text-xs text-gray-500">
+                <input type="checkbox" name="agree" required {% if values.get('agree') %}checked{% endif %} class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                <span>답변 연락을 위해 이름과 연락처를 수집·이용하는 데 동의합니다 (문의 처리 후 1년 보관).</span>
+            </label>
+            <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">문의 등록</button>
+        </form>
+
+        {# 목록 #}
+        <section class="lg:col-span-3 space-y-3">
+            <h2 class="text-sm font-bold text-gray-500">우리 매장 문의 {{ inquiries | length }}건</h2>
+            {% for q in inquiries %}
+                <details class="bg-white rounded-2xl border shadow-sm {{ 'border-red-200' if q.id in new_ids else 'border-gray-200' }}"
+                         {% if q.id in new_ids or (loop.first and created) %}open{% endif %}>
+                    <summary class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3.5 cursor-pointer list-none">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{{ INQUIRY_CATEGORIES[q.category].label }}</span>
+                        <span class="flex-1 min-w-[8rem] font-semibold text-sm truncate">{{ q.title }}</span>
+                        <span class="text-xs text-gray-400">{{ q.created_at | local_dt('%m-%d %H:%M') }}</span>
+                        {% if q.id in new_ids %}
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">새 답변</span>
+                        {% else %}
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-50 text-emerald-600' if q.answer else 'bg-gray-100 text-gray-500' }}">{{ '답변 완료' if q.answer else '답변 대기' }}</span>
+                        {% endif %}
+                    </summary>
+                    <div class="px-5 pb-5 pt-1 space-y-3 text-sm">
+                        <p class="leading-relaxed whitespace-pre-line text-gray-700">{{ q.content }}</p>
+                        {% if q.answer %}
+                            <div class="rounded-xl bg-blue-50/60 border border-blue-100 p-4">
+                                <p class="text-xs font-bold text-blue-600 mb-1.5">답변 · {{ q.answered_at | local_dt }}</p>
+                                <p class="leading-relaxed whitespace-pre-line">{{ q.answer }}</p>
+                            </div>
+                        {% else %}
+                            <p class="text-xs text-gray-400">아직 답변을 준비 중입니다.</p>
+                        {% endif %}
+                    </div>
+                </details>
+            {% else %}
+                <div class="py-16 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                    <p class="font-bold text-gray-500">남긴 문의가 없습니다.</p>
+                    <p class="text-xs text-gray-400 mt-1">궁금한 점이 생기면 왼쪽에서 문의해 주세요.</p>
+                </div>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}

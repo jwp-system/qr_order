@@ -1,17 +1,18 @@
 # app/main.py
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.events import broker
 from app.core.security import require_super_admin
-from app.core.templating import templates
 from app.database.session import engine
-from app.routers import auth, client, events, menu, store, super_admin, super_auth, tables
+from app.routers import (
+    auth, client, events, inquiries, landing, menu, store, super_admin, super_auth, support, tables,
+)
 
 
 @asynccontextmanager
@@ -36,11 +37,6 @@ def _register_middlewares(app: FastAPI) -> None:
 
 
 def _register_routes(app: FastAPI) -> None:
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    async def landing(request: Request):
-        """서비스 소개 페이지"""
-        return templates.TemplateResponse(request=request, name="landing.html")
-
     @app.get("/healthz", tags=["System"])
     async def health_check():
         return {"status": "ok", "app": settings.PROJECT_NAME}
@@ -55,11 +51,14 @@ def _register_routes(app: FastAPI) -> None:
         )
 
     # tags는 각 라우터에 정의되어 있으므로 include 시 다시 넣지 않는다 (OpenAPI 중복 방지)
+    app.include_router(landing.router)      # 서비스 소개 (/), 데모 QR
+    app.include_router(inquiries.router)    # 문의 게시판 (/inquiries)
     app.include_router(auth.router)         # 스태프 로그인/로그아웃
     app.include_router(client.router)       # 고객 주문
     app.include_router(store.router)        # 식당용: /admin, /kitchen, /hall
     app.include_router(menu.router)         # 매장 관리자 메뉴 관리: /admin/menu
     app.include_router(tables.router)       # 매장 관리자 테이블 관리: /admin/tables
+    app.include_router(support.router)      # 매장 관리자 사용 중 문의: /admin/support
     app.include_router(events.router)       # 실시간 이벤트(SSE)
     app.include_router(super_auth.router)   # /super/login, /super/logout (인증 불필요)
     # /super/* 는 전부 시스템 관리자 인증 필수. 라우터 파일이 아니라 여기서 일괄 적용하므로

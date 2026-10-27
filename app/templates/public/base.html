@@ -1,0 +1,89 @@
+{# public/base.html — 공개 화면 공통 레이아웃 (랜딩 /, 문의 게시판 /inquiries)
+   context: SITE (templating 전역: name, operator, email, business_info)
+   블록: title, description, content #}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ SITE.name }}{% endblock %}</title>
+    {% include "common/favicon.html" %}
+    <meta name="description" content="{% block description %}후불 매장용 QR 주문 서비스. 앱 설치나 단말기 구매 없이, 가지고 계신 태블릿으로 주문 접수부터 주방, 홀 서빙, 테이블 정산까지.{% endblock %}">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toss: {
+                            blue: '#3182F6',
+                            hoverBlue: '#1B64DA',
+                            lightBlue: '#E8F3FF',
+                            dark: '#191F28',
+                            gray: '#8B95A1',
+                            lightGray: '#F2F4F6',
+                            border: '#E5E8EB',
+                            bg: '#F9FAFB',
+                            red: '#F04452',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        section[id] { scroll-margin-top: 5rem; }
+    </style>
+</head>
+<body class="bg-white text-toss-dark font-sans antialiased selection:bg-blue-100">
+
+<header class="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-toss-border/60">
+    <div class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-2.5 shrink-0">
+            <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-9 h-9">
+            <span class="text-lg font-extrabold tracking-tight">{{ SITE.name }}</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-toss-gray">
+            <a href="/#flow" class="hover:text-toss-dark transition">주문 흐름</a>
+            <a href="/#screens" class="hover:text-toss-dark transition">화면</a>
+            <a href="/#start" class="hover:text-toss-dark transition">도입 방법</a>
+            <a href="/#pricing" class="hover:text-toss-dark transition">요금</a>
+            <a href="/#faq" class="hover:text-toss-dark transition">FAQ</a>
+            <a href="/inquiries" class="hover:text-toss-dark transition">문의 게시판</a>
+        </nav>
+        <div class="flex items-center gap-2">
+            <a href="/login" class="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold bg-toss-lightGray hover:bg-slate-200 transition">직원 로그인</a>
+            <a href="/inquiries/new?type=intro" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">도입 문의</a>
+        </div>
+    </div>
+</header>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+<footer class="bg-toss-dark text-toss-gray py-10 px-5 text-xs">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between gap-4">
+        <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+                <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-6 h-6">
+                <span class="font-bold text-white text-sm">{{ SITE.name }}</span>
+            </div>
+            <p>운영 {{ SITE.operator }} · 문의 <a href="mailto:{{ SITE.email }}" class="hover:text-white">{{ SITE.email }}</a></p>
+            {% if SITE.business_info %}<p>{{ SITE.business_info }}</p>{% endif %}
+        </div>
+        <div class="flex sm:flex-col sm:items-end gap-3 sm:gap-1.5">
+            <a href="/inquiries" class="hover:text-white">문의 게시판</a>
+            <a href="/login" class="hover:text-white">직원 로그인</a>
+            <p>© JWP-SYSTEM</p>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

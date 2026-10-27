@@ -1,13 +1,15 @@
 # app/core/security.py
 import hashlib
 import hmac
-from datetime import datetime, timedelta, timezone
+import secrets
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict
 from urllib.parse import quote, urlsplit
 
 import jwt
 from fastapi import HTTPException, Request, status
 
+from app.core.clock import business_today
 from app.core.config import settings
 from app.domain.roles import Role  # security.Role 로도 import 가능 (하위 호환)
 
@@ -32,19 +34,48 @@ def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
     return hmac.compare_digest(hash_pin(plain_pin), hashed_pin)  # 타이밍 공격 방지
 
 
+# 문의 게시판 비밀번호: 사람마다 다른 소금값 + PBKDF2 ("pbkdf2$반복횟수$salt$hash")
+_PBKDF2_ITERATIONS = 200_000
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), _PBKDF2_ITERATIONS)
+    return f"pbkdf2${_PBKDF2_ITERATIONS}${salt}${digest.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        _, iterations, salt, expected = stored.split("$")
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), int(iterations))
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(digest.hex(), expected)
+
+
 # =====================================================================
 # 2. 매장 스태프 세션 쿠키
 # =====================================================================
 PIN_CHANGE_PATH = "/admin/pin"  # 기본 PIN 변경 화면 (변경 전에는 이 화면만 쓸 수 있다)
 
+# 서비스 종료 후 조회 전용 세션이 쓸 수 있는 화면 (GET만). 그 외 화면 이동은 주문 내역으로 보낸다.
+READONLY_HOME = "/admin/history"
+READONLY_PATHS = frozenset({READONLY_HOME, "/admin/history.csv", "/admin/menu", "/admin/menu/body", "/admin/support"})
+READONLY_POST_PATHS = frozenset({"/admin/support"})  # 종료 후에도 문의는 남길 수 있다
 
-def create_staff_session_token(store_id: int, role: Role, *, pin_change_required: bool = False) -> str:
+
+def create_staff_session_token(
+    store_id: int, role: Role, *, pin_change_required: bool = False, readonly_until: date | None = None,
+) -> str:
     """관리자/주방/홀 PIN 인증 성공 시 세션 JWT 생성.
-    pin_change_required: 기본 PIN으로 로그인한 관리자. PIN을 바꾸기 전까지 다른 화면 접근을 막는다."""
+    pin_change_required: 기본 PIN으로 로그인한 관리자. PIN을 바꾸기 전까지 다른 화면 접근을 막는다.
+    readonly_until: 서비스 종료 매장의 조회 전용 세션. 이 날짜(영업일)까지 READONLY_PATHS만 볼 수 있다."""
     expire = datetime.now(timezone.utc) + timedelta(seconds=settings.SESSION_MAX_AGE_SECONDS)
     payload = {"store_id": store_id, "role": role.value, "exp": expire}
     if pin_change_required:
         payload["pin_change"] = True
+    if readonly_until:
+        payload["ro_until"] = readonly_until.isoformat()
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -119,11 +150,32 @@ def _pin_change_required(request: Request) -> HTTPException:
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
+def _readonly_denied(request: Request) -> HTTPException:
+    """조회 전용 세션의 허용되지 않은 요청: 화면 이동은 주문 내역으로, HTMX는 HX-Redirect, 그 외는 403"""
+    detail = "서비스가 종료되어 조회만 할 수 있습니다."
+    if request.headers.get("HX-Request"):
+        return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers={"HX-Redirect": READONLY_HOME})
+    if request.method == "GET" and "text/event-stream" not in request.headers.get("accept", ""):
+        return HTTPException(status_code=status.HTTP_303_SEE_OTHER, detail=detail, headers={"Location": READONLY_HOME})
+    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
+def readonly_until_of(session: Dict[str, Any]) -> date | None:
+    """조회 전용 세션이면 조회 가능한 마지막 날"""
+    value = session.get("ro_until")
+    try:
+        return date.fromisoformat(value) if value else None
+    except (TypeError, ValueError):
+        return None
+
+
 class RequireStaffRole:
     """허용한 역할(또는 ADMIN)만 접근 가능하도록 강제하는 FastAPI Dependency.
     ADMIN은 주방/홀 화면에도 접근할 수 있다. 통과하면 세션({store_id, role, exp})을 돌려준다.
     매장은 요청 값이 아니라 이 세션의 store_id로 정한다.
-    기본 PIN 변경 전 세션은 allow_pin_change_pending=True인 곳(PIN 변경 화면)에서만 통과한다."""
+    기본 PIN 변경 전 세션은 allow_pin_change_pending=True인 곳(PIN 변경 화면)에서만 통과한다.
+    조회 전용 세션(서비스 종료 매장)은 READONLY_PATHS의 GET만 통과하고, 기간이 지나면 다시 로그인해야 한다.
+    통과한 세션은 request.state.staff_session에도 넣어 템플릿이 쓸 수 있게 한다."""
 
     def __init__(self, allowed_roles: list[Role], *, allow_pin_change_pending: bool = False):
         self.login_role = allowed_roles[0]  # 미로그인 시 로그인 화면에서 미리 선택할 역할
@@ -139,8 +191,22 @@ class RequireStaffRole:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=e.detail,
             ) from None
         if session["role"] == Role.ADMIN.value or session["role"] in self.allowed_roles:
-            if session.get("pin_change") and not self.allow_pin_change_pending:
+            until = readonly_until_of(session)
+            if until:
+                if business_today() > until:
+                    raise _staff_denied(
+                        request, login_role=self.login_role, allowed=self.allowed_roles,
+                        status_code=status.HTTP_401_UNAUTHORIZED, detail="조회 기간이 끝났습니다.",
+                    )
+                path = request.url.path
+                allowed = (request.method in ("GET", "HEAD") and path in READONLY_PATHS) or (
+                    request.method == "POST" and path in READONLY_POST_PATHS
+                )
+                if not allowed:
+                    raise _readonly_denied(request)
+            elif session.get("pin_change") and not self.allow_pin_change_pending:
                 raise _pin_change_required(request)
+            request.state.staff_session = session
             return session
         raise _staff_denied(
             request, login_role=self.login_role, allowed=self.allowed_roles,

@@ -2,18 +2,20 @@
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.clock import business_today
 from app.core.security import hash_pin
 from app.core.templating import templates
 from app.database.models import LicenseStatus, Order, Store, Table
 from app.database.session import get_db
 from app.domain.roles import Role
 from app.services.auth_service import DEFAULT_PINS
+from app.services import inquiry_service
 from app.services.table_service import new_qr_token
 
 router = APIRouter(prefix="/super", tags=["Super Admin"])
@@ -64,7 +66,8 @@ async def super_dashboard(
                 "today_orders": stats_row.total_orders,
                 "today_revenue": stats_row.total_revenue
             },
-            "license_statuses": LicenseStatus
+            "license_statuses": LicenseStatus,
+            "unanswered": await inquiry_service.unanswered_count(db),
         }
     )
 
@@ -124,7 +127,8 @@ async def update_store_license(
     status: LicenseStatus = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
-    """라이선스 상태 실시간 변경 (TRIAL <-> ACTIVE <-> EXPIRED)"""
+    """라이선스 상태 실시간 변경 (TRIAL <-> ACTIVE <-> EXPIRED).
+    EXPIRED로 바꾼 날(영업일)을 종료일로 기록한다. 이날부터 1개월간 관리자 조회 전용 (domain/license.py)."""
     stmt = (
         select(Store)
         .options(selectinload(Store.tables))
@@ -135,6 +139,11 @@ async def update_store_license(
     if not store:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없습니다.")
 
+    if status is LicenseStatus.EXPIRED:
+        if store.license_status is not LicenseStatus.EXPIRED:  # 이미 종료된 매장은 종료일 유지
+            store.expired_on = business_today()
+    else:
+        store.expired_on = None
     store.license_status = status
     await db.commit()
     await db.refresh(store)
@@ -183,3 +192,44 @@ async def reset_store_pins(
             "alert_msg": "PIN이 기본값으로 초기화되었습니다."
         }
     )
+
+# =====================================================================
+# 문의 게시판 관리 (/super/inquiries)
+# =====================================================================
+@router.get("/inquiries", response_class=HTMLResponse)
+async def super_inquiries(
+    request: Request,
+    page: int = 1,
+    show_all: bool = Query(False, alias="all"),  # 기본은 답변 대기만
+    db: AsyncSession = Depends(get_db),
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="super_admin/inquiries.html",
+        context={
+            "result": await inquiry_service.list_page(db, page, unanswered=not show_all),
+            "only_open": not show_all,
+            "unanswered": await inquiry_service.unanswered_count(db),
+        },
+    )
+
+
+@router.post("/inquiries/{inquiry_id}/answer")
+async def super_answer_inquiry(
+    inquiry_id: int,
+    answer: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    """답변 저장 후 전체 목록의 해당 문의로 (답변 대기 목록에서는 사라지므로)"""
+    inquiry = await inquiry_service.get(db, inquiry_id)
+    try:
+        await inquiry_service.answer(db, inquiry, answer)
+    except inquiry_service.InquiryError as e:
+        raise HTTPException(status_code=422, detail=e.message) from None
+    return RedirectResponse(url=f"/super/inquiries?all=1#q-{inquiry_id}", status_code=303)
+
+
+@router.post("/inquiries/{inquiry_id}/delete")
+async def super_delete_inquiry(inquiry_id: int, db: AsyncSession = Depends(get_db)):
+    await inquiry_service.delete(db, await inquiry_service.get(db, inquiry_id))
+    return RedirectResponse(url="/super/inquiries?all=1", status_code=303)

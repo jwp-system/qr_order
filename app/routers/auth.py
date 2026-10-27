@@ -12,14 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.rate_limit import FailureLimiter
+from app.core.clock import business_today
 from app.core.security import (
     PIN_CHANGE_PATH,
+    READONLY_HOME,
     create_staff_session_token,
     get_current_staff_session,
     require_admin_pin_setup,
 )
 from app.core.templating import templates
 from app.database.session import get_db
+from app.domain.license import StoreAccess, readonly_until
 from app.domain.roles import Role
 from app.services import auth_service as svc
 from app.services.store_service import get_store_or_404
@@ -31,9 +34,9 @@ ROLE_LABELS = (
     (Role.KITCHEN.value, "주방"),
     (Role.HALL.value, "홀"),
 )
-# 역할별 로그인 후 첫 화면. store_id 쿼리는 보드가 인증 연동 전까지 쿼리로 매장을 구분하기 때문.
+# 역할별 로그인 후 첫 화면 (매장은 세션으로 정해지므로 쿼리 없이)
 ROLE_HOME = {
-    Role.ADMIN: "/admin/orders",
+    Role.ADMIN: "/admin/board",
     Role.KITCHEN: "/kitchen/board",
     Role.HALL: "/hall/board",
 }
@@ -131,7 +134,7 @@ async def login(
 
     # --- 인증 ---
     try:
-        store = await svc.authenticate_staff(db, code, role, pin)
+        store, access = await svc.authenticate_staff(db, code, role, pin)
     except svc.StaffAuthError as e:
         if e.counts_as_failure:
             _ip_limiter.record_failure(ip_key)
@@ -142,12 +145,19 @@ async def login(
     _store_limiter.reset(store_key)
 
     # --- 세션 쿠키 발급 후 이동 (POST -> GET 이므로 303) ---
+    if access is StoreAccess.READONLY:
+        # 서비스 종료 매장: 조회 전용 세션으로 주문 내역부터 (PIN 변경 강제 없음)
+        response = RedirectResponse(url=READONLY_HOME, status_code=303)
+        until = readonly_until(store.expired_on or business_today())
+        _set_session_cookie(response, create_staff_session_token(store.id, role, readonly_until=until))
+        return response
+
     # 관리자가 기본 PIN(관리자/주방/홀 중 하나라도)을 쓰고 있으면 PIN 변경부터 하게 한다
     pin_change = role is Role.ADMIN and bool(svc.default_pin_roles(store))
     if pin_change:
         target = PIN_CHANGE_PATH + (f"?next={quote(safe_next, safe='/')}" if safe_next else "")
     else:
-        target = safe_next or f"{ROLE_HOME[role]}?store_id={store.id}"
+        target = safe_next or ROLE_HOME[role]
     response = RedirectResponse(url=target, status_code=303)
     _set_session_cookie(response, create_staff_session_token(store.id, role, pin_change_required=pin_change))
     return response
@@ -234,7 +244,7 @@ async def change_pins(
 
     # 변경 강제 해제된 세션으로 다시 발급. 강제 변경이었다면 원래 가려던 곳(또는 관리자 첫 화면)으로 보낸다
     if session.get("pin_change"):
-        target = safe_next or f"{ROLE_HOME[Role.ADMIN]}?store_id={store.id}"
+        target = safe_next or ROLE_HOME[Role.ADMIN]
     else:
         target = f"{PIN_CHANGE_PATH}?changed=1"
     response = RedirectResponse(url=target, status_code=303)

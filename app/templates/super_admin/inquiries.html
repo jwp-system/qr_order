@@ -1,0 +1,73 @@
+{# super_admin/inquiries.html — 문의 게시판 관리 (연락처 확인, 답변 등록/수정, 삭제)
+   context: result (InquiryPage), only_open (답변 대기만 보기), unanswered #}
+{% extends "base.html" %}
+
+{% block title %}문의 게시판 - {{ SITE.name }} 시스템 관리자{% endblock %}
+
+{% block header %}
+{% with active = 'inquiries' %}{% include "super_admin/fragments/super_header.html" %}{% endwith %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-4 space-y-4">
+    <div class="flex items-center justify-between">
+        <div class="inline-flex p-1 bg-gray-200/70 rounded-xl gap-1 text-sm font-semibold">
+            <a href="/super/inquiries" class="px-3 py-1.5 rounded-lg {{ 'bg-white shadow-sm' if only_open else 'text-gray-500' }}">답변 대기 {{ unanswered }}</a>
+            <a href="/super/inquiries?all=1" class="px-3 py-1.5 rounded-lg {{ 'bg-white shadow-sm' if not only_open else 'text-gray-500' }}">전체</a>
+        </div>
+        <a href="/inquiries" target="_blank" rel="noopener" class="text-xs font-semibold text-blue-600 hover:underline">공개 게시판 보기</a>
+    </div>
+
+    {% for q in result.items %}
+        <details id="q-{{ q.id }}" class="bg-white rounded-2xl border border-gray-200 shadow-sm" {% if only_open and loop.first %}open{% endif %}>
+            <summary class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 cursor-pointer list-none">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{{ INQUIRY_CATEGORIES[q.category].label }}</span>
+                {% if q.store_id %}
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-600" title="매장 관리자 화면에서 남긴 문의 (게시판 비공개)">
+                        매장 · {{ q.store.name if q.store else q.store_name }}{% if q.store %} ({{ q.store.service_code }}){% endif %}
+                    </span>
+                {% endif %}
+                <span class="flex-1 min-w-[10rem] font-semibold text-sm truncate">{% if q.is_private %}🔒 {% endif %}{{ q.title }}</span>
+                <span class="text-xs text-gray-400">{{ q.author_name }} · {{ q.created_at | local_dt }}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-50 text-emerald-600' if q.answer else 'bg-red-50 text-red-500' }}">{{ '답변 완료' if q.answer else '답변 대기' }}</span>
+            </summary>
+            <div class="px-5 pb-5 space-y-4 border-t border-gray-100 pt-4">
+                <dl class="grid sm:grid-cols-3 gap-2 text-sm">
+                    <div><dt class="text-xs text-gray-400">이름</dt><dd class="font-semibold">{{ q.author_name }}</dd></div>
+                    <div><dt class="text-xs text-gray-400">연락처</dt><dd class="font-semibold">{{ q.contact }}</dd></div>
+                    <div><dt class="text-xs text-gray-400">매장명</dt><dd class="font-semibold">{{ q.store_name or '-' }}</dd></div>
+                </dl>
+                <p class="text-sm leading-relaxed whitespace-pre-line bg-gray-50 rounded-xl p-4">{{ q.content }}</p>
+
+                <form method="post" action="/super/inquiries/{{ q.id }}/answer" class="space-y-2">
+                    <label for="answer-{{ q.id }}" class="block text-xs font-bold text-gray-500">
+                        답변 {% if q.answered_at %}<span class="font-normal text-gray-400">(마지막 저장 {{ q.answered_at | local_dt }})</span>{% endif %}
+                    </label>
+                    <textarea id="answer-{{ q.id }}" name="answer" rows="4" maxlength="4000"
+                              placeholder="{{ '매장 관리자 화면의 문의 탭에 보이는 답변입니다.' if q.store_id else '게시판에 공개되는 답변입니다 (비밀글이면 작성자만 봅니다).' }} 비워서 저장하면 '답변 대기'로 돌아갑니다."
+                              class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{{ q.answer or '' }}</textarea>
+                    <div class="flex justify-between">
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">답변 저장</button>
+                        <button type="submit" formaction="/super/inquiries/{{ q.id }}/delete" formnovalidate
+                                onclick="return confirm('이 문의를 삭제할까요? 되돌릴 수 없습니다.')"
+                                class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 text-sm font-semibold">삭제</button>
+                    </div>
+                </form>
+            </div>
+        </details>
+    {% else %}
+        <div class="py-16 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="font-bold text-gray-500">{{ '답변할 문의가 없습니다.' if only_open else '문의가 없습니다.' }}</p>
+        </div>
+    {% endfor %}
+
+    {% if result.pages > 1 %}
+        <nav class="flex items-center justify-center gap-2 text-sm" aria-label="페이지">
+            {% set qs = '&all=1' if not only_open else '' %}
+            {% if result.page > 1 %}<a href="/super/inquiries?page={{ result.page - 1 }}{{ qs }}" class="px-3 py-1.5 rounded-lg bg-white border font-semibold">이전</a>{% endif %}
+            <span class="text-gray-500">{{ result.page }} / {{ result.pages }}</span>
+            {% if result.page < result.pages %}<a href="/super/inquiries?page={{ result.page + 1 }}{{ qs }}" class="px-3 py-1.5 rounded-lg bg-white border font-semibold">다음</a>{% endif %}
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

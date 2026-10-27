@@ -15,40 +15,28 @@
 매장은 요청 값이 아니라 로그인 세션의 store_id로 정한다.
 """
 from typing import Any, Dict
-from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.security import require_admin
 from app.core.templating import templates
+from app.core.urls import is_local, order_url, public_base_url
 from app.database.models import Table, TableStatus
 from app.database.session import get_db
+from app.routers.support import load_support_badge
 from app.services import table_service as svc
 from app.services.store_service import get_store_or_404
 
 Session = Dict[str, Any]
 
-router = APIRouter(prefix="/admin/tables", tags=["Store Admin Tables"], dependencies=[Depends(require_admin)])
+router = APIRouter(
+    prefix="/admin/tables", tags=["Store Admin Tables"],
+    dependencies=[Depends(require_admin), Depends(load_support_badge)],  # 헤더 '문의' 새 답변 배지
+)
 
 UNPROCESSABLE = 422
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
-
-
-def _base_url(request: Request) -> str:
-    return (settings.PUBLIC_BASE_URL or str(request.base_url)).rstrip("/")
-
-
-def _order_url(request: Request, table: Table) -> str:
-    """고객이 QR로 여는 주소"""
-    return f"{_base_url(request)}/order/{quote(table.qr_token, safe='')}"
-
-
-def _is_local(request: Request) -> bool:
-    """QR 주소가 휴대폰에서 열 수 없는 로컬 주소인가 (화면 경고용)"""
-    return urlsplit(_base_url(request)).hostname in _LOCAL_HOSTS
 
 
 async def _body(
@@ -91,8 +79,8 @@ async def tables_page(request: Request, session: Session = Depends(require_admin
             "store": store,
             "rows": await svc.list_tables(db, store.id),
             "statuses": list(TableStatus),
-            "qr_base_url": _base_url(request),
-            "qr_is_local": _is_local(request),
+            "qr_base_url": public_base_url(request),
+            "qr_is_local": is_local(request),
             "error": None,
             "message": None,
         },
@@ -112,7 +100,7 @@ async def qr_print_page(request: Request, session: Session = Depends(require_adm
     return templates.TemplateResponse(
         request=request,
         name="store_admin/table_qr_print.html",
-        context={"store": store, "tables": [r.table for r in rows], "qr_is_local": _is_local(request)},
+        context={"store": store, "tables": [r.table for r in rows], "qr_is_local": is_local(request)},
     )
 
 
@@ -174,8 +162,8 @@ def _qr_modal(request: Request, table: Table, message: str | None = None) -> HTM
         name="store_admin/fragments/table_qr_modal.html",
         context={
             "table": table,
-            "order_url": _order_url(request, table),
-            "qr_is_local": _is_local(request),
+            "order_url": order_url(request, table.qr_token),
+            "qr_is_local": is_local(request),
             "message": message,
         },
     )
@@ -198,7 +186,7 @@ async def qr_image(
     headers = {"Cache-Control": "no-store"}  # 재발급 후 이전 QR 이미지가 캐시에서 보이지 않도록
     if download:
         headers["Content-Disposition"] = f'attachment; filename="table-{table.table_number}-qr.png"'
-    return Response(content=svc.qr_png(_order_url(request, table)), media_type="image/png", headers=headers)
+    return Response(content=svc.qr_png(order_url(request, table.qr_token)), media_type="image/png", headers=headers)
 
 
 @router.post("/{table_id}/qr/reissue", response_class=HTMLResponse)

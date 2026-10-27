@@ -7,8 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.events import notify_order_changed
 from app.database.models import (
-    Category, Item, OptionGroup,
-    Order, OrderItem, OrderItemOption, OrderStatus, Table, TableStatus,
+    Category, Item, LicenseStatus, OptionGroup, OptionType,
+    Order, OrderItem, OrderItemOption, OrderStatus, Store, Table, TableStatus,
 )
 from app.domain.order_status import CUSTOMER_VISIBLE_STATUSES
 from app.domain.table_status import can_order
@@ -24,9 +24,17 @@ async def get_active_table_by_token(
     load_store: bool = False,
     not_found_status: int = status.HTTP_400_BAD_REQUEST,
 ) -> Table:
-    """QR 토큰으로 접근 가능한 테이블 조회 ('사용 안 함' 제외). 없으면 not_found_status로 예외.
-    '주문 중지' 테이블도 조회는 된다 (주문 가능 여부는 create_order에서 확인)."""
-    stmt = select(Table).where(Table.qr_token == qr_token, Table.status != TableStatus.DISABLED)
+    """QR 토큰으로 접근 가능한 테이블 조회 ('사용 안 함' 테이블, 서비스 종료 매장 제외).
+    없으면 not_found_status로 예외. '주문 중지' 테이블도 조회는 된다 (주문 가능 여부는 create_order에서 확인)."""
+    stmt = (
+        select(Table)
+        .join(Store, Table.store_id == Store.id)
+        .where(
+            Table.qr_token == qr_token,
+            Table.status != TableStatus.DISABLED,
+            Store.license_status != LicenseStatus.EXPIRED,
+        )
+    )
     if load_store:
         stmt = stmt.options(selectinload(Table.store))
     table = (await db.execute(stmt)).scalar_one_or_none()
@@ -66,7 +74,8 @@ async def get_item_with_options(db: AsyncSession, item_id: int) -> Item:
 
 
 def build_option_modal_data(item: Item) -> dict:
-    """옵션 모달용 JS 전달 데이터 (프레젠테이션 매핑)"""
+    """옵션 모달용 JS 전달 데이터 (프레젠테이션 매핑).
+    defaultOptions: 단일 선택(SELECT) 그룹은 첫 번째 옵션(관리자가 정한 순서)을 기본 선택으로 시작한다."""
     return {
         "itemId": item.id,
         "itemName": item.name,
@@ -78,6 +87,11 @@ def build_option_modal_data(item: Item) -> dict:
                 "isRequired": g.is_required,
             }
             for g in item.option_groups
+        ],
+        "defaultOptions": [
+            {"groupId": g.id, "name": g.details[0].name, "price": g.details[0].additional_price}
+            for g in item.option_groups
+            if g.option_type is OptionType.SELECT and g.details
         ],
     }
 
