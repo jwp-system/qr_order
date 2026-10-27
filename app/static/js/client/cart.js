@@ -64,7 +64,13 @@ function cartData(qrToken) {
                     }),
                 });
                 const html = await res.text();
-                if (!res.ok) throw new Error(`주문 실패 (${res.status})`);
+                if (!res.ok) {
+                    // 서버 안내 문구(품절, 주문 중지 등)가 있으면 그대로 보여준다
+                    let detail = '';
+                    try { detail = JSON.parse(html).detail; } catch (_) { /* HTML 등 */ }
+                    alert(typeof detail === 'string' && detail ? detail : '주문에 실패했습니다. 다시 시도해 주세요.');
+                    return;
+                }
 
                 this.cartItems = [];
                 this.updateCartTotals();

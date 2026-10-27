@@ -1,0 +1,80 @@
+{# store_admin/table_manage.html — 매장 관리자 테이블 관리
+   context: store, rows (TableRow 목록), statuses, qr_base_url, qr_is_local, error, message
+   목록(#tables-body)은 각 폼의 응답으로 통째로 교체된다. QR은 #modal-container(base.html)에 모달로 열린다. #}
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 테이블 관리{% endblock %}
+
+{% block header %}
+<header class="bg-blue-600 text-white px-6 py-4 flex justify-between items-center shadow-md">
+    <h1 class="text-lg font-bold">{{ store.name }} - 테이블 관리</h1>
+    <nav class="flex items-center gap-4">
+        {% with active = 'tables' %}{% include "store_admin/fragments/admin_nav.html" %}{% endwith %}
+        <form method="post" action="/logout">
+            <button type="submit" class="text-xs font-semibold text-white/80 hover:text-white underline-offset-2 hover:underline">로그아웃</button>
+        </form>
+    </nav>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-2 space-y-4">
+    {% if qr_is_local %}
+        <div role="alert" class="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3">
+            QR 주소가 <strong>{{ qr_base_url }}</strong> 로 만들어집니다. 손님 휴대폰에서는 열리지 않으니,
+            운영 환경에서는 <code class="text-xs bg-white px-1 rounded">PUBLIC_BASE_URL</code>을 설정하거나 실제 주소로 접속해 인쇄하세요.
+        </div>
+    {% endif %}
+
+    {# 테이블 추가 #}
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <p class="text-sm text-gray-500 font-medium">상태를 바꾸면 손님 QR 화면에 바로 적용됩니다.</p>
+        <div class="flex items-center gap-2">
+            <form hx-post="/admin/tables" hx-target="#tables-body" hx-swap="innerHTML"
+                  class="flex items-center gap-2">
+                <label class="flex items-center gap-1 text-xs font-semibold text-gray-500">
+                    시작 번호
+                    <input type="number" name="start" min="1" placeholder="자동"
+                           class="w-20 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </label>
+                <label class="flex items-center gap-1 text-xs font-semibold text-gray-500">
+                    개수
+                    <input type="number" name="count" min="1" max="50" value="1"
+                           class="w-16 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </label>
+                <button type="submit"
+                        class="shrink-0 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition active:scale-95 shadow-sm">
+                    + 테이블 추가
+                </button>
+            </form>
+            <a href="/admin/tables/qr-print" target="_blank" rel="noopener"
+               class="shrink-0 px-3.5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-xs transition">
+                QR 전체 인쇄
+            </a>
+        </div>
+    </div>
+
+    <div id="tables-body">
+        {% include "store_admin/fragments/table_manage_body.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    // 검증 실패(422)도 오류가 표시된 목록으로 교체되도록 허용
+    document.addEventListener('htmx:beforeSwap', (e) => {
+        if (e.detail.xhr.status === 422) {
+            e.detail.shouldSwap = true;
+            e.detail.isError = false;
+        }
+    });
+    const modal = () => document.getElementById('modal-container');
+    window.closeTableModal = () => { modal().innerHTML = ''; };
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal().innerHTML.trim()) window.closeTableModal();
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{# store_admin/fragments/menu_item_modal.html — 메뉴 추가/수정 모달 (#modal-container에 들어간다)
+   context: item (None이면 추가 모드), values (폼 값 dict), categories, option_types, error, message
+   추가 성공 시 서버가 수정 모드로 다시 그려 보내므로 바로 옵션을 추가할 수 있다. #}
+{% set editing = item is not none %}
+{% set input_cls = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white' %}
+{% set label_cls = 'block text-xs font-bold text-gray-500 mb-1.5' %}
+<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto"
+     role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl my-8">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 id="menu-modal-title" class="text-lg font-bold">{{ '메뉴 수정' if editing else '메뉴 추가' }}</h2>
+            <button type="button" onclick="closeMenuModal()" aria-label="닫기"
+                    class="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none px-1">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-6">
+            {% if error %}
+                <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
+            {% endif %}
+            {% if message %}
+                <div role="status" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">{{ message }}</div>
+            {% endif %}
+
+            {# 기본 정보 #}
+            <form hx-post="{{ '/admin/menu/items/%d' % item.id if editing else '/admin/menu/items' }}"
+                  hx-target="#modal-container" hx-swap="innerHTML"
+                  class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="item-category" class="{{ label_cls }}">카테고리</label>
+                        <select id="item-category" name="category_id" required class="{{ input_cls }}">
+                            <option value="" disabled {% if not values.get('category_id') %}selected{% endif %}>선택하세요</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if values.get('category_id') == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="item-name" class="{{ label_cls }}">메뉴 이름</label>
+                        <input id="item-name" type="text" name="name" required maxlength="100"
+                               value="{{ values.get('name', '') }}" class="{{ input_cls }}">
+                    </div>
+                    <div>
+                        <label for="item-price" class="{{ label_cls }}">가격 (원)</label>
+                        <input id="item-price" type="number" name="price" required min="0" step="100"
+                               value="{{ values.get('price', '') }}" class="{{ input_cls }}">
+                    </div>
+                    {% if editing %}
+                        <div>
+                            <label for="item-order" class="{{ label_cls }}">카테고리 안 순서 (작을수록 위)</label>
+                            <input id="item-order" type="number" name="display_order" min="0"
+                                   value="{{ values.get('display_order', '') }}" class="{{ input_cls }}">
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="item-desc" class="{{ label_cls }}">설명 (선택)</label>
+                    <textarea id="item-desc" name="description" rows="2" maxlength="500"
+                              class="{{ input_cls }}">{{ values.get('description', '') }}</textarea>
+                </div>
+                <div>
+                    <label for="item-image" class="{{ label_cls }}">이미지 주소 (선택)</label>
+                    <input id="item-image" type="text" name="image_url" maxlength="255" placeholder="https://..."
+                           value="{{ values.get('image_url', '') }}" class="{{ input_cls }}">
+                </div>
+
+                <fieldset>
+                    <legend class="{{ label_cls }}">상태</legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {% for flag, meta in ITEM_FLAGS.items() %}
+                            <label class="flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="{{ flag }}" {% if values.get(flag) %}checked{% endif %}
+                                       class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                <span>
+                                    <span class="block text-sm font-bold">{{ meta.label }}</span>
+                                    <span class="block text-xs text-gray-400">{{ meta.desc }}</span>
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+
+                <div class="flex items-center gap-2 pt-1">
+                    {% if editing %}
+                        <button type="button"
+                                hx-post="/admin/menu/items/{{ item.id }}/delete"
+                                hx-target="#modal-container" hx-swap="innerHTML"
+                                hx-confirm="'{{ item.name }}' 메뉴를 삭제할까요? (지난 주문 내역은 유지됩니다)"
+                                class="px-4 py-3 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 font-semibold text-sm transition">삭제</button>
+                    {% endif %}
+                    <button type="submit"
+                            class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition active:scale-[0.98]">
+                        {{ '저장' if editing else '메뉴 추가' }}
+                    </button>
+                </div>
+            </form>
+
+            {# 옵션 (메뉴가 저장된 뒤에만) #}
+            {% if editing %}
+                {% include "store_admin/fragments/menu_options.html" %}
+            {% else %}
+                <p class="text-xs text-gray-400 text-center">옵션(맵기 선택, 추가 토핑 등)은 메뉴를 추가한 뒤 설정할 수 있습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

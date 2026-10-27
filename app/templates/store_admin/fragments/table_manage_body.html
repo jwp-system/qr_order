@@ -1,0 +1,96 @@
+{# store_admin/fragments/table_manage_body.html — 테이블 목록 (#tables-body 내용)
+   context: rows (TableRow: table, active_orders, has_orders), statuses, error, message
+   상태 버튼 색 (Tailwind 스캔을 위해 완성된 문자열) #}
+{% set status_on = {
+  'AVAILABLE': 'bg-emerald-600 text-white border-emerald-600',
+  'PAUSED':    'bg-amber-500 text-white border-amber-500',
+  'DISABLED':  'bg-gray-600 text-white border-gray-600',
+} %}
+{% set status_badge = {
+  'AVAILABLE': 'bg-emerald-50 text-emerald-600',
+  'PAUSED':    'bg-amber-50 text-amber-600',
+  'DISABLED':  'bg-gray-100 text-gray-500',
+} %}
+
+<div class="space-y-4">
+    {% if error %}
+        <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+        <div role="status" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">{{ message }}</div>
+    {% endif %}
+
+    {# 상태별 개수 #}
+    <section class="grid grid-cols-3 gap-3">
+        {% for s in statuses %}
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ status_badge[s.value] }}">{{ TABLE_STATUS_META[s].label }}</span>
+                <div class="text-2xl font-black mt-2 tracking-tight">{{ rows | selectattr('table.status', 'equalto', s) | list | length }}</div>
+            </div>
+        {% endfor %}
+    </section>
+
+    {% if rows %}
+        <div class="bg-white rounded-3xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+            {% for row in rows %}
+                {% set t = row.table %}
+                <div class="flex flex-col md:flex-row md:items-center gap-3 px-5 py-4 {{ 'bg-gray-50' if t.status.value == 'DISABLED' else '' }}"
+                     x-data="{ editing: false }">
+                    {# 번호 (편집 가능) #}
+                    <div class="flex items-center gap-3 md:w-56 shrink-0">
+                        <div x-show="!editing">
+                            <h3 class="text-base font-bold {{ 'text-gray-400' if t.status.value == 'DISABLED' else '' }}">{{ t.table_number }}번 테이블</h3>
+                            <p class="text-xs {{ 'text-blue-600 font-semibold' if row.active_orders else 'text-gray-400' }}">
+                                {{ '진행 중 주문 %d건' % row.active_orders if row.active_orders else '진행 중 주문 없음' }}
+                            </p>
+                        </div>
+                        <form x-show="editing" x-cloak
+                              hx-post="/admin/tables/{{ t.id }}" hx-target="#tables-body" hx-swap="innerHTML"
+                              class="flex items-center gap-1.5">
+                            <input type="number" name="table_number" value="{{ t.table_number }}" min="1" required aria-label="테이블 번호"
+                                   class="w-20 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="submit" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold">저장</button>
+                            <button type="button" @click="editing = false" class="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 text-xs font-semibold">취소</button>
+                        </form>
+                    </div>
+
+                    {# 상태 #}
+                    <div class="flex-1">
+                        <div class="inline-flex p-1 bg-gray-100 rounded-xl gap-1" role="group" aria-label="{{ t.table_number }}번 테이블 상태">
+                            {% for s in statuses %}
+                                {% set on = (t.status == s) %}
+                                <button type="button"
+                                        hx-post="/admin/tables/{{ t.id }}/status" hx-vals='{"status": "{{ s.value }}"}'
+                                        hx-target="#tables-body" hx-swap="innerHTML" hx-disabled-elt="this"
+                                        aria-pressed="{{ 'true' if on else 'false' }}" title="{{ TABLE_STATUS_META[s].desc }}"
+                                        class="px-3 py-1.5 rounded-lg border text-xs font-bold transition
+                                               {{ status_on[s.value] if on else 'border-transparent text-gray-500 hover:text-gray-800' }}">
+                                    {{ TABLE_STATUS_META[s].label }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {# QR / 편집 / 삭제 #}
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" hx-get="/admin/tables/{{ t.id }}/qr" hx-target="#modal-container"
+                                class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition">QR</button>
+                        <button type="button" x-show="!editing" @click="editing = true"
+                                class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition">번호 변경</button>
+                        {% if not row.has_orders %}
+                            <button type="button"
+                                    hx-post="/admin/tables/{{ t.id }}/delete" hx-target="#tables-body" hx-swap="innerHTML"
+                                    hx-confirm="{{ t.table_number }}번 테이블을 삭제할까요?"
+                                    class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-400 hover:text-red-500 text-xs font-semibold transition">삭제</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="py-24 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="text-base font-bold text-gray-500">등록된 테이블이 없습니다.</p>
+            <p class="text-xs text-gray-400 mt-1">위에서 개수를 입력하고 테이블을 추가하세요.</p>
+        </div>
+    {% endif %}
+</div>

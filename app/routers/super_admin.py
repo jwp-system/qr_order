@@ -1,21 +1,22 @@
 # app/routers/super_admin.py
 import secrets
-import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
 from app.core.security import hash_pin
+from app.core.templating import templates
 from app.database.models import LicenseStatus, Order, Store, Table
 from app.database.session import get_db
+from app.domain.roles import Role
+from app.services.auth_service import DEFAULT_PINS
+from app.services.table_service import new_qr_token
 
 router = APIRouter(prefix="/super", tags=["Super Admin"])
-templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -53,8 +54,7 @@ async def super_dashboard(
 
     return templates.TemplateResponse(
         request=request,
-        name=
-        "super_admin/dashboard.html",
+        name= "super_admin/dashboard.html",
         context={
             "stores": stores,
             "metrics": {
@@ -86,20 +86,19 @@ async def create_store(
         name=name,
         service_code=service_code,
         license_status=license_status,
-        admin_pin=hash_pin("1234"),
-        kitchen_pin=hash_pin("0000"),
-        hall_pin=hash_pin("1111")
+        admin_pin=hash_pin(DEFAULT_PINS[Role.ADMIN]),
+        kitchen_pin=hash_pin(DEFAULT_PINS[Role.KITCHEN]),
+        hall_pin=hash_pin(DEFAULT_PINS[Role.HALL])
     )
     db.add(new_store)
     await db.flush()
 
     # 3. 요청된 수만큼 기본 테이블 자동 생성
     for i in range(1, initial_tables + 1):
-        table_token = f"TOKEN_{new_store.id}_{i}_{secrets.token_urlsafe(8)}"
         table = Table(
             store_id=new_store.id,
             table_number=i,
-            qr_token=table_token
+            qr_token=new_qr_token()
         )
         db.add(table)
 
@@ -157,7 +156,7 @@ async def reset_store_pins(
     store_id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    """매장 운영 핀코드 기본값(1234/0000/1111)으로 리셋"""
+    """매장 운영 핀코드 기본값(1234/0000/1111)으로 리셋. 다음 관리자 로그인 시 PIN 변경이 다시 강제된다."""
     stmt = (
         select(Store)
         .options(selectinload(Store.tables))
@@ -168,9 +167,9 @@ async def reset_store_pins(
     if not store:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없습니다.")
 
-    store.admin_pin = hash_pin("1234")
-    store.kitchen_pin = hash_pin("0000")
-    store.hall_pin = hash_pin("1111")
+    store.admin_pin = hash_pin(DEFAULT_PINS[Role.ADMIN])
+    store.kitchen_pin = hash_pin(DEFAULT_PINS[Role.KITCHEN])
+    store.hall_pin = hash_pin(DEFAULT_PINS[Role.HALL])
     await db.commit()
     await db.refresh(store)
 

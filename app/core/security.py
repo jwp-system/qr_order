@@ -3,12 +3,16 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
+from urllib.parse import quote, urlsplit
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
 from app.domain.roles import Role  # security.Role 로도 import 가능 (하위 호환)
+
+
+_STAFF_ROLES = frozenset(r.value for r in Role)
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -29,39 +33,18 @@ def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
 
 
 # =====================================================================
-# 2. 테이블 QR 서명 토큰 (JWT, HS256)
+# 2. 매장 스태프 세션 쿠키
 # =====================================================================
-def create_table_qr_token(store_id: int, table_id: int, table_number: int) -> str:
-    """store_id/table_id를 패킹해 서명한 토큰 발급 (변조 방지).
-    QR 특성상 만료 없이 발급한다."""
-    payload = {
-        "sub": "table_access",
-        "store_id": store_id,
-        "table_id": table_id,
-        "table_number": table_number,
-        "iat": datetime.now(timezone.utc),
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+PIN_CHANGE_PATH = "/admin/pin"  # 기본 PIN 변경 화면 (변경 전에는 이 화면만 쓸 수 있다)
 
 
-def decode_table_qr_token(token: str) -> Dict[str, Any]:
-    """고객 접근 시 QR 토큰 무결성 검증"""
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except jwt.PyJWTError:
-        raise _unauthorized("만료되었거나 위조된 QR 토큰입니다.")
-    if payload.get("sub") != "table_access":
-        raise _unauthorized("유효하지 않은 테이블 토큰입니다.")
-    return payload
-
-
-# =====================================================================
-# 3. 매장 스태프 세션 쿠키
-# =====================================================================
-def create_staff_session_token(store_id: int, role: Role) -> str:
-    """관리자/주방/홀 PIN 인증 성공 시 세션 JWT 생성"""
+def create_staff_session_token(store_id: int, role: Role, *, pin_change_required: bool = False) -> str:
+    """관리자/주방/홀 PIN 인증 성공 시 세션 JWT 생성.
+    pin_change_required: 기본 PIN으로 로그인한 관리자. PIN을 바꾸기 전까지 다른 화면 접근을 막는다."""
     expire = datetime.now(timezone.utc) + timedelta(seconds=settings.SESSION_MAX_AGE_SECONDS)
     payload = {"store_id": store_id, "role": role.value, "exp": expire}
+    if pin_change_required:
+        payload["pin_change"] = True
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -71,31 +54,170 @@ def get_current_staff_session(request: Request) -> Dict[str, Any]:
     if not token:
         raise _unauthorized("로그인이 필요한 페이지입니다.")
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise _unauthorized("세션이 만료되었습니다.")
+        raise _unauthorized("세션이 만료되었습니다.") from None
     except jwt.PyJWTError:
+        raise _unauthorized("유효하지 않은 세션입니다.") from None
+    # 같은 키로 서명된 다른 종류의 토큰(슈퍼 관리자 등)은 스태프 세션으로 인정하지 않는다
+    if payload.get("role") not in _STAFF_ROLES or not isinstance(payload.get("store_id"), int):
         raise _unauthorized("유효하지 않은 세션입니다.")
+    return payload
 
 
 # =====================================================================
-# 4. 권한 인가 의존성 (RBAC)
+# 3. 권한 인가 의존성 (RBAC)
 # =====================================================================
+def _hint_role(request: Request) -> str | None:
+    """만료/무효 세션에서 이전 역할만 읽는다 (서명 검증 없음). 로그인 화면의 역할 미리 선택에만 쓴다."""
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not token:
+        return None
+    try:
+        claims = jwt.decode(
+            token, options={"verify_signature": False, "verify_exp": False},
+            algorithms=[settings.ALGORITHM],
+        )
+    except jwt.PyJWTError:
+        return None
+    role = claims.get("role")
+    return role if role in _STAFF_ROLES else None
+
+
+def _staff_denied(
+    request: Request, *, login_role: Role, allowed: frozenset[str], status_code: int, detail: str
+) -> HTTPException:
+    """미로그인(401)/권한 없음(403) 응답. 요청 종류별로 다르게 돌려준다.
+      - 화면 이동(GET)      -> 303 /login?role=..&next=<현재 경로>
+      - HTMX 요청           -> HX-Redirect (현재 페이지를 next로)
+      - SSE/그 외 API 요청  -> 그대로 401/403 (EventSource는 리다이렉트를 따라가지 못함)"""
+    hint = _hint_role(request) if status_code == status.HTTP_401_UNAUTHORIZED else None
+    role = hint if hint and (hint == Role.ADMIN.value or hint in allowed) else login_role.value
+
+    if request.headers.get("HX-Request"):
+        current = urlsplit(request.headers.get("HX-Current-URL", "")).path
+        location = f"/login?role={role}" + (f"&next={quote(current, safe='/')}" if current else "")
+        return HTTPException(status_code=status_code, detail=detail, headers={"HX-Redirect": location})
+    if request.method == "GET" and "text/event-stream" not in request.headers.get("accept", ""):
+        location = f"/login?role={role}&next={quote(request.url.path, safe='/')}"
+        return HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER, detail=detail, headers={"Location": location}
+        )
+    return HTTPException(status_code=status_code, detail=detail)
+
+
+def _pin_change_required(request: Request) -> HTTPException:
+    """기본 PIN 변경 전 세션: 화면 이동은 PIN 변경 화면으로, HTMX는 HX-Redirect, 그 외는 403"""
+    detail = "기본 PIN을 변경해야 합니다."
+    if request.headers.get("HX-Request"):
+        return HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers={"HX-Redirect": PIN_CHANGE_PATH}
+        )
+    if request.method == "GET" and "text/event-stream" not in request.headers.get("accept", ""):
+        location = f"{PIN_CHANGE_PATH}?next={quote(request.url.path, safe='/')}"
+        return HTTPException(status_code=status.HTTP_303_SEE_OTHER, detail=detail, headers={"Location": location})
+    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
 class RequireStaffRole:
     """허용한 역할(또는 ADMIN)만 접근 가능하도록 강제하는 FastAPI Dependency.
-    ADMIN은 주방/홀 화면에도 접근할 수 있다."""
+    ADMIN은 주방/홀 화면에도 접근할 수 있다. 통과하면 세션({store_id, role, exp})을 돌려준다.
+    매장은 요청 값이 아니라 이 세션의 store_id로 정한다.
+    기본 PIN 변경 전 세션은 allow_pin_change_pending=True인 곳(PIN 변경 화면)에서만 통과한다."""
 
-    def __init__(self, allowed_roles: list[Role]):
+    def __init__(self, allowed_roles: list[Role], *, allow_pin_change_pending: bool = False):
+        self.login_role = allowed_roles[0]  # 미로그인 시 로그인 화면에서 미리 선택할 역할
         self.allowed_roles = frozenset(r.value for r in allowed_roles)
+        self.allow_pin_change_pending = allow_pin_change_pending
 
-    def __call__(
-        self, session_data: Dict[str, Any] = Depends(get_current_staff_session)
-    ) -> Dict[str, Any]:
-        user_role = session_data.get("role")
-        if user_role == Role.ADMIN.value or user_role in self.allowed_roles:
-            return session_data
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="해당 화면에 접근할 권한이 없습니다.",
+    def __call__(self, request: Request) -> Dict[str, Any]:
+        try:
+            session = get_current_staff_session(request)
+        except HTTPException as e:
+            raise _staff_denied(
+                request, login_role=self.login_role, allowed=self.allowed_roles,
+                status_code=status.HTTP_401_UNAUTHORIZED, detail=e.detail,
+            ) from None
+        if session["role"] == Role.ADMIN.value or session["role"] in self.allowed_roles:
+            if session.get("pin_change") and not self.allow_pin_change_pending:
+                raise _pin_change_required(request)
+            return session
+        raise _staff_denied(
+            request, login_role=self.login_role, allowed=self.allowed_roles,
+            status_code=status.HTTP_403_FORBIDDEN, detail="해당 화면에 접근할 권한이 없습니다.",
         )
+
+
+# 라우터에서 같은 인스턴스를 재사용한다 (FastAPI가 요청당 한 번만 실행하도록 캐시 키가 같아야 함)
+require_admin = RequireStaffRole([Role.ADMIN])
+require_kitchen = RequireStaffRole([Role.KITCHEN])
+require_hall = RequireStaffRole([Role.HALL])
+require_staff = RequireStaffRole(list(Role))  # 관리자/주방/홀 누구나
+require_admin_pin_setup = RequireStaffRole([Role.ADMIN], allow_pin_change_pending=True)  # PIN 변경 화면 전용
+
+
+# =====================================================================
+# 4. 시스템(슈퍼) 관리자 세션 (/super/*)
+# =====================================================================
+SUPER_ROLE = "super"  # 스태프 Role과 분리: ROLE_TARGETS 등 스태프 권한 표에는 존재하지 않는다
+
+
+def verify_super_password(plain: str) -> bool:
+    expected = settings.SUPER_ADMIN_PASSWORD
+    if not expected:
+        return False
+    return hmac.compare_digest(plain.encode("utf-8"), expected.encode("utf-8"))
+
+
+def _super_fingerprint() -> str:
+    """현재 비밀번호의 지문. 토큰에 넣어 두면 비밀번호를 바꿨을 때 기존 세션이 모두 무효가 된다."""
+    key = settings.SECRET_KEY.encode("utf-8")
+    msg = (settings.SUPER_ADMIN_PASSWORD or "").encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:16]
+
+
+def create_super_session_token() -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=settings.SUPER_SESSION_MAX_AGE_SECONDS)
+    payload = {"role": SUPER_ROLE, "pwd": _super_fingerprint(), "exp": expire}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _super_login_required(request: Request) -> HTTPException:
+    """요청 종류별 응답: 화면 이동은 로그인으로 리다이렉트, HTMX는 HX-Redirect, 그 외는 401"""
+    if request.headers.get("HX-Request"):
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="시스템 관리자 로그인이 필요합니다.",
+            headers={"HX-Redirect": "/super/login"},
+        )
+    if request.method == "GET":
+        return HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            detail="시스템 관리자 로그인이 필요합니다.",
+            headers={"Location": f"/super/login?next={quote(request.url.path, safe='/')}"},
+        )
+    return _unauthorized("시스템 관리자 로그인이 필요합니다.")
+
+
+def require_super_admin(request: Request) -> Dict[str, Any]:
+    """/super/* 보호용 FastAPI Dependency.
+    SUPER_ADMIN_PASSWORD가 설정되지 않았으면 모든 요청을 막는다(fail-closed)."""
+    if not settings.SUPER_ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="시스템 관리자 기능이 비활성화되어 있습니다. SUPER_ADMIN_PASSWORD를 설정하세요.",
+        )
+    token = request.cookies.get(settings.SUPER_SESSION_COOKIE_NAME)
+    payload = None
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        except jwt.PyJWTError:
+            payload = None
+    if (
+        not payload
+        or payload.get("role") != SUPER_ROLE
+        or not hmac.compare_digest(str(payload.get("pwd", "")), _super_fingerprint())
+    ):
+        raise _super_login_required(request)
+    return payload

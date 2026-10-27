@@ -6,17 +6,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.events import notify_order_changed
 from app.database.models import Order, OrderItem, OrderStatus, Store
 from app.domain.order_status import (
     ACTIVE_STATUSES,  # 라우터에서 svc.ACTIVE_STATUSES로 사용
     ROLE_VIEW_STATUSES,
-    STATUS_META,
     InvalidTransition,
     can_role_change,
     stays_on_board,
     validate_transition,
 )
-from app.domain.roles import Role
+from app.domain.roles import Role, can_view_board
 
 # 역할별 보드 정렬 기준 (없으면 get_orders 기본: 최신순)
 BOARD_ORDER_BY = {
@@ -112,41 +112,43 @@ async def _transition(db: AsyncSession, order: Order, target: OrderStatus) -> Or
         validate_transition(order.status, target)
     except InvalidTransition as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
     order.status = target
+    await notify_order_changed(db, order.store_id, order.table_id, order.id, target)  # 커밋 후 전달
     await db.commit()
     return await _reload_order(db, order.id)
 
 
-async def change_status(
-    db: AsyncSession, order_id: int, target: OrderStatus
-) -> Order:
-    """조회(잠금) -> 전이 검증 -> 저장."""
-    order = await get_order_or_404(db, order_id)
-    return await _transition(db, order, target)
-
-
-async def advance_status(db: AsyncSession, order_id: int) -> Order:
-    """STATUS_META.next 기준으로 다음 단계로 진행.
-    조회 시 잡은 잠금을 풀지 않고 그대로 전이까지 수행한다."""
-    order = await get_order_or_404(db, order_id)
-    target = STATUS_META[order.status].next
-    if target is None:
-        await db.rollback()
-        raise HTTPException(status_code=409, detail="더 이상 진행할 수 없는 상태입니다.")
-    return await _transition(db, order, target)
-
-
 async def change_status_by_role(
-    db: AsyncSession, order_id: int, target: OrderStatus, role: Role
+    db: AsyncSession,
+    order_id: int,
+    target: OrderStatus,
+    *,
+    actor: Role,
+    board: Role,
+    store_id: int,
 ) -> tuple[Order, bool]:
-    """역할 권한 확인 후 상태 변경.
-    반환: (order, 변경 후에도 해당 역할 보드에 남는지)"""
-    if not can_role_change(role, target):
+    """로그인한 직원(actor)이 자기 매장(store_id)의 주문 상태를 변경한다.
+      - actor가 target으로 바꿀 권한이 있는가 (ROLE_TARGETS)
+      - actor가 board(카드를 누른 보드) 화면을 쓸 수 있는가 (관리자만 다른 역할 보드 가능)
+      - 주문이 actor의 매장 소속인가 (다른 매장 주문은 존재 여부도 숨기려고 404)
+    반환: (order, 변경 후에도 board 보드에 남는지)"""
+    if not can_role_change(actor, target):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"'{role.value}' 역할은 {target.value} 상태로 변경할 수 없습니다.",
+            detail=f"'{actor.value}' 역할은 {target.value} 상태로 변경할 수 없습니다.",
         )
-    order = await change_status(db, order_id, target)
-    return order, stays_on_board(role, order.status)
+    if not can_view_board(actor, board):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"'{actor.value}' 역할은 {board.value} 보드를 사용할 수 없습니다.",
+        )
+
+    order = await get_order_or_404(db, order_id)  # 행 잠금
+    if order.store_id != store_id:
+        await db.rollback()  # 잠금 해제
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+
+    order = await _transition(db, order, target)
+    return order, stays_on_board(board, order.status)

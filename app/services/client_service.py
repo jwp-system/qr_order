@@ -5,11 +5,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.events import notify_order_changed
 from app.database.models import (
     Category, Item, OptionGroup,
-    Order, OrderItem, OrderItemOption, OrderStatus, Table,
+    Order, OrderItem, OrderItemOption, OrderStatus, Table, TableStatus,
 )
 from app.domain.order_status import CUSTOMER_VISIBLE_STATUSES
+from app.domain.table_status import can_order
 
 
 # =====================================================================
@@ -22,8 +24,9 @@ async def get_active_table_by_token(
     load_store: bool = False,
     not_found_status: int = status.HTTP_400_BAD_REQUEST,
 ) -> Table:
-    """QR 토큰으로 활성 테이블 조회. 없으면 not_found_status로 예외."""
-    stmt = select(Table).where(Table.qr_token == qr_token, Table.is_active.is_(True))
+    """QR 토큰으로 접근 가능한 테이블 조회 ('사용 안 함' 제외). 없으면 not_found_status로 예외.
+    '주문 중지' 테이블도 조회는 된다 (주문 가능 여부는 create_order에서 확인)."""
+    stmt = select(Table).where(Table.qr_token == qr_token, Table.status != TableStatus.DISABLED)
     if load_store:
         stmt = stmt.options(selectinload(Table.store))
     table = (await db.execute(stmt)).scalar_one_or_none()
@@ -39,20 +42,22 @@ async def get_active_table_by_token(
 
 
 async def get_menu_categories(db: AsyncSession, store_id: int) -> list[Category]:
+    """고객 메뉴: 숨김 메뉴는 빼고, 보여줄 메뉴가 없는 카테고리도 뺀다 (품절은 표시)"""
     stmt = (
         select(Category)
-        .options(selectinload(Category.items))
+        .options(selectinload(Category.items.and_(Item.is_hidden.is_(False))))
         .where(Category.store_id == store_id)
-        .order_by(Category.display_order.asc())
+        .order_by(Category.display_order.asc(), Category.id.asc())
     )
-    return list((await db.execute(stmt)).scalars().all())
+    categories = (await db.execute(stmt)).scalars().all()
+    return [c for c in categories if c.items]
 
 
 async def get_item_with_options(db: AsyncSession, item_id: int) -> Item:
     stmt = (
         select(Item)
         .options(selectinload(Item.option_groups).selectinload(OptionGroup.details))
-        .where(Item.id == item_id)
+        .where(Item.id == item_id, Item.is_hidden.is_(False))
     )
     item = (await db.execute(stmt)).scalar_one_or_none()
     if not item:
@@ -101,15 +106,16 @@ async def get_table_orders(db: AsyncSession, table_id: int) -> list[Order]:
 # =====================================================================
 # 화면용 컨텍스트 (라우터를 얇게 유지하기 위한 조합 함수)
 # =====================================================================
-async def get_active_order_count(db, qr_token:str) -> dict:
-    """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
+async def get_active_order_count(db: AsyncSession, qr_token: str) -> dict:
+    """진행 중 주문 건수 배지용 경량 컨텍스트 (주문 변경 이벤트마다 호출되므로 최소한만 조회)"""
     table = await get_active_table_by_token(
-        db, qr_token, load_store=True, not_found_status=status.HTTP_404_NOT_FOUND
+        db, qr_token, not_found_status=status.HTTP_404_NOT_FOUND
     )
     return {
         "qr_token": qr_token,
         "active_order_count": await count_table_active_orders(db, table.id),
     }
+
 
 async def get_menu_context(db: AsyncSession, qr_token: str) -> dict:
     """/order, /order/{qr_token} 공통: 테이블/매장/카테고리/진행중 주문 수"""
@@ -189,6 +195,10 @@ def _validate_cart(cart_items, items_by_id: dict[int, Item]) -> int:
     total_price = 0
     for c in cart_items:
         db_item = items_by_id[c.item_id]
+        if db_item.is_hidden:
+            raise HTTPException(
+                status_code=409, detail=f"'{db_item.name}'은(는) 현재 판매하지 않는 메뉴입니다."
+            )
         if db_item.is_sold_out:
             raise HTTPException(
                 status_code=409, detail=f"'{db_item.name}'은(는) 품절되었습니다."
@@ -270,6 +280,10 @@ async def create_order(
 ) -> Order:
     """장바구니 -> 주문 스냅샷 저장 (한 트랜잭션).
     가격/메뉴명은 클라이언트 값을 믿지 않고 DB 기준으로 검증한다."""
+    if not can_order(table.status):
+        raise HTTPException(
+            status_code=409, detail="지금은 이 테이블에서 주문을 받지 않습니다. 직원에게 문의해 주세요."
+        )
     if not cart_items:
         raise HTTPException(status_code=400, detail="장바구니가 비어 있습니다.")
 
@@ -280,10 +294,11 @@ async def create_order(
         order = await _save_order(
             db, table, cart_items, items_by_id, special_instruction, total_price
         )
+        await notify_order_changed(db, table.store_id, table.id, order.id, order.status)  # 커밋 후 전달
         await db.commit()
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail="주문 저장 중 오류가 발생했습니다.")
+        raise HTTPException(status_code=500, detail="주문 저장 중 오류가 발생했습니다.") from e
 
     await db.refresh(order)
     return order

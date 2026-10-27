@@ -1,0 +1,14 @@
+{# store_admin/fragments/admin_nav.html — 매장 관리자 화면 이동 링크 (헤더용)
+   context: active ('orders' | 'settlement' | 'tables' | 'menu' | 'pin') — 현재 화면은 굵게 표시 #}
+{% set admin_links = [
+  ('orders', '/admin/orders', '주문 현황'),
+  ('settlement', '/admin/settlement', '테이블 정산'),
+  ('tables', '/admin/tables', '테이블 관리'),
+  ('menu',   '/admin/menu',   '메뉴 관리'),
+  ('pin',    '/admin/pin',    'PIN 변경'),
+] %}
+{% for key, href, label in admin_links %}
+    <a href="{{ href }}" {% if key == active %}aria-current="page"{% endif %}
+       class="text-xs font-semibold underline-offset-2 hover:underline
+              {{ 'text-white' if key == active else 'text-white/70 hover:text-white' }}">{{ label }}</a>
+{% endfor %}

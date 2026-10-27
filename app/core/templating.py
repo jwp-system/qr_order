@@ -11,14 +11,15 @@ from app.domain.order_status import (
     can_cancel,
     can_role_change,
 )
+from app.domain.menu import ITEM_FLAGS
 from app.domain.roles import Role
+from app.domain.table_status import TABLE_STATUS_META
 
 templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
 
 def _debug_print(*args, **kwargs) -> str:
     """템플릿 디버그용. DEBUG일 때만 출력하고, 항상 빈 문자열 반환(렌더에 'None'이 찍히지 않도록)."""
-    print("***devug print")
     if settings.DEBUG:
         print(*args, **kwargs)
     return ""
@@ -40,6 +41,8 @@ templates.env.globals.update(
         r.value: [s.value for s in OrderStatus if s in sts]
         for r, sts in ROLE_VIEW_STATUSES.items()
     },
+    ITEM_FLAGS=ITEM_FLAGS,
+    TABLE_STATUS_META=TABLE_STATUS_META,  # 테이블 상태 표시명  # 메뉴 상태 (관리자 토글 / 고객 배지)
     print=_debug_print,
 )
 

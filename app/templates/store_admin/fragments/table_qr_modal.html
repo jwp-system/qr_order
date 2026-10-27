@@ -1,0 +1,50 @@
+{# store_admin/fragments/table_qr_modal.html — 테이블 QR 모달 (#modal-container에 들어간다)
+   context: table, order_url, qr_is_local, message
+   이미지 주소의 v= 는 재발급 직후 브라우저가 이전 QR 이미지를 재사용하지 않게 하려는 값이다. #}
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+     role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 id="qr-modal-title" class="text-lg font-bold">{{ table.table_number }}번 테이블 QR</h2>
+            <button type="button" onclick="closeTableModal()" aria-label="닫기"
+                    class="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none px-1">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-4">
+            {% if message %}
+                <div role="status" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">{{ message }}</div>
+            {% endif %}
+            {% if table.status.value != 'AVAILABLE' %}
+                <p class="rounded-xl bg-amber-50 border border-amber-200/70 text-amber-800 text-xs font-medium px-3 py-2">
+                    현재 상태: {{ TABLE_STATUS_META[table.status].label }} — {{ TABLE_STATUS_META[table.status].desc }}
+                </p>
+            {% endif %}
+
+            <img src="/admin/tables/{{ table.id }}/qr.png?v={{ table.qr_token[:8] }}" alt="{{ table.table_number }}번 테이블 주문 QR"
+                 class="w-56 h-56 mx-auto rounded-xl border border-gray-100">
+
+            <div>
+                <label for="qr-url" class="block text-xs font-bold text-gray-500 mb-1.5">주문 주소</label>
+                <div class="flex gap-1.5">
+                    <input id="qr-url" type="text" readonly value="{{ order_url }}"
+                           class="flex-1 min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    <button type="button"
+                            onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('qr-url').value).then(() => { this.textContent = '복사됨'; })"
+                            class="shrink-0 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold">복사</button>
+                </div>
+                {% if qr_is_local %}
+                    <p class="text-[11px] text-amber-700 mt-1.5">로컬 주소라 손님 휴대폰에서는 열리지 않습니다 (PUBLIC_BASE_URL 설정 필요).</p>
+                {% endif %}
+            </div>
+
+            <div class="flex gap-2">
+                <a href="/admin/tables/{{ table.id }}/qr.png?download=1"
+                   class="flex-1 text-center py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition">이미지 저장</a>
+                <button type="button"
+                        hx-post="/admin/tables/{{ table.id }}/qr/reissue" hx-target="#modal-container" hx-swap="innerHTML"
+                        hx-confirm="QR을 새로 발급할까요? 지금 테이블에 붙어 있는 QR은 더 이상 열리지 않습니다."
+                        class="px-4 py-3 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 font-semibold text-sm transition">재발급</button>
+            </div>
+        </div>
+    </div>
+</div>

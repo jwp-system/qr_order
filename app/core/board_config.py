@@ -4,11 +4,11 @@
 정렬 기준은 domain/service 쪽 책임이므로 여기서 다루지 않는다.
 
 common/board_layout.html, common/order_grid.html이 이 설정으로 렌더링된다.
+목록 갱신은 폴링이 아니라 SSE 신호(core/events.py)로 한다.
 """
 from app.domain.roles import Role
 
 CARD_TEMPLATE = "common/order_card.html"
-POLL_INTERVAL = "10s"  # HTMX trigger 간격 (m은 '분'이므로 주의)
 
 
 def _board(
@@ -26,7 +26,6 @@ def _board(
         "title": title,
         "badge": badge,
         "feed_url": feed_url or f"/{role.value}/feed",
-        "poll_interval": POLL_INTERVAL,
         "card_template": CARD_TEMPLATE,
         "empty_title": empty_title,
         "empty_desc": empty_desc,

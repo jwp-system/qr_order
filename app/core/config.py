@@ -12,9 +12,15 @@ class Settings(BaseSettings):
     # --- 애플리케이션 기본 정보 ---
     PROJECT_NAME: str = "QuickOrder SaaS"
     VERSION: str = "0.1.0"
-    API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+
+    # 영업일 기준 시간대 (정산 화면의 '오늘' 매출 집계)
+    BUSINESS_TIMEZONE: str = "Asia/Seoul"
+
+    # 테이블 QR에 넣을 고객 접속 주소 (예: https://order.example.com).
+    # 비우면 관리자가 접속한 주소를 쓴다 (localhost로 접속하면 휴대폰에서 열리지 않으니 운영 시 설정할 것).
+    PUBLIC_BASE_URL: str | None = None
 
     # --- 서버 호스트 & 도메인 ---
     SERVER_HOST: str = "0.0.0.0"
@@ -62,6 +68,12 @@ class Settings(BaseSettings):
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
+    # --- 시스템(슈퍼) 관리자: /super/* ---
+    # 미설정(또는 빈 값)이면 /super 전체가 비활성화(503)된다 (인증 없이 열리는 일이 없도록 fail-closed).
+    SUPER_ADMIN_PASSWORD: str | None = None
+    SUPER_SESSION_COOKIE_NAME: str = "quickorder_super"
+    SUPER_SESSION_MAX_AGE_SECONDS: int = 60 * 60 * 8  # 8시간
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SESSION_COOKIE_SECURE(self) -> bool:
@@ -83,6 +95,12 @@ class Settings(BaseSettings):
     def _check_production_secrets(self) -> "Settings":
         if self.ENVIRONMENT == "production" and self.SECRET_KEY == _INSECURE_SECRET_KEY:
             raise ValueError("production 환경에서는 SECRET_KEY를 반드시 변경해야 합니다.")
+        if (
+            self.ENVIRONMENT == "production"
+            and self.SUPER_ADMIN_PASSWORD
+            and len(self.SUPER_ADMIN_PASSWORD) < 12
+        ):
+            raise ValueError("production 환경의 SUPER_ADMIN_PASSWORD는 12자 이상이어야 합니다.")
         return self
 
 

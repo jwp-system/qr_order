@@ -11,7 +11,7 @@ from alembic import context
 # 1. 설정 및 ORM 메타데이터 임포트
 from app.core.config import settings
 from app.database.base import Base
-import app.database.models  # 모든 테이블 모델이 로드되어야 자동 감지됨
+import app.database.models  # noqa: F401  모든 테이블 모델이 로드되어야 자동 감지됨
 
 config = context.config
 

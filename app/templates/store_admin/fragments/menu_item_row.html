@@ -1,0 +1,60 @@
+{# store_admin/fragments/menu_item_row.html — 메뉴 한 줄 (상태 토글 응답으로도 단독 렌더)
+   context: item (option_groups 로드됨). 상태 버튼은 ITEM_FLAGS(domain/menu.py) 기준. #}
+{# 켜졌을 때 버튼 색 (Tailwind 스캔을 위해 완성된 문자열) #}
+{% set flag_on = {
+  'is_sold_out':    'bg-red-500 text-white border-red-500',
+  'is_hidden':      'bg-gray-700 text-white border-gray-700',
+  'is_popular':     'bg-rose-500 text-white border-rose-500',
+  'is_new':         'bg-amber-500 text-white border-amber-500',
+  'is_recommended': 'bg-blue-600 text-white border-blue-600',
+} %}
+<div id="menu-item-{{ item.id }}"
+     class="flex flex-col md:flex-row md:items-center gap-4 px-5 py-4 {{ 'bg-gray-50' if item.is_hidden else '' }}">
+    {# 메뉴 정보 #}
+    <div class="flex items-center gap-3 flex-1 min-w-0 {{ 'opacity-50' if item.is_hidden or item.is_sold_out else '' }}">
+        <div class="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center text-[10px] font-bold text-gray-300">
+            {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="" class="w-full h-full object-cover">
+            {% else %}
+                IMAGE
+            {% endif %}
+        </div>
+        <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+                <h3 class="text-sm font-bold truncate">{{ item.name }}</h3>
+                <span class="text-[11px] text-gray-400">#{{ item.display_order }}</span>
+            </div>
+            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ "{:,}".format(item.price) }}원</p>
+            <p class="text-xs text-gray-400 truncate">
+                옵션 그룹 {{ item.option_groups | length }}개{% if item.description %} · {{ item.description }}{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {# 상태 토글 #}
+    <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="메뉴 상태">
+        {% for flag, meta in ITEM_FLAGS.items() %}
+            {% set on = item[flag] %}
+            <button type="button"
+                    hx-post="/admin/menu/items/{{ item.id }}/flags/{{ flag }}"
+                    hx-target="#menu-item-{{ item.id }}" hx-swap="outerHTML"
+                    hx-disabled-elt="this"
+                    aria-pressed="{{ 'true' if on else 'false' }}" title="{{ meta.desc }}"
+                    class="px-2.5 py-1 rounded-full border text-xs font-bold transition active:scale-95
+                           {{ flag_on[flag] if on else 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600' }}">
+                {{ meta.label }}
+            </button>
+        {% endfor %}
+    </div>
+
+    {# 수정 / 삭제 #}
+    <div class="flex items-center gap-1.5 shrink-0">
+        <button type="button" hx-get="/admin/menu/items/{{ item.id }}" hx-target="#modal-container"
+                class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">수정</button>
+        <button type="button"
+                hx-post="/admin/menu/items/{{ item.id }}/delete"
+                hx-target="#menu-item-{{ item.id }}" hx-swap="outerHTML"
+                hx-confirm="'{{ item.name }}' 메뉴를 삭제할까요? (지난 주문 내역은 유지됩니다)"
+                class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-400 hover:text-red-500 text-xs font-semibold transition">삭제</button>
+    </div>
+</div>

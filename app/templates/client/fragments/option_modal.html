@@ -44,7 +44,7 @@
                                    value="{{ detail.id }}"
                                    @change="
                                         selectedOptions = selectedOptions.filter(o => o.groupId !== {{ group.id }});
-                                        selectedOptions.push({ groupId: {{ group.id }}, name: '{{ detail.name }}', price: {{ detail.additional_price }} });
+                                        selectedOptions.push({ groupId: {{ group.id }}, name: {{ detail.name|tojson|forceescape }}, price: {{ detail.additional_price }} });
                                    "
                                    class="w-4 h-4 text-blue-600 focus:ring-blue-500">
                             {% else %}
@@ -52,9 +52,9 @@
                                    value="{{ detail.id }}"
                                    @change="
                                         if ($el.checked) {
-                                            selectedOptions.push({ groupId: {{ group.id }}, name: '{{ detail.name }}', price: {{ detail.additional_price }} });
+                                            selectedOptions.push({ groupId: {{ group.id }}, name: {{ detail.name|tojson|forceescape }}, price: {{ detail.additional_price }} });
                                         } else {
-                                            selectedOptions = selectedOptions.filter(o => !(o.groupId === {{ group.id }} && o.name === '{{ detail.name }}'));
+                                            selectedOptions = selectedOptions.filter(o => !(o.groupId === {{ group.id }} && o.name === {{ detail.name|tojson|forceescape }}));
                                         }
                                    "
                                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">

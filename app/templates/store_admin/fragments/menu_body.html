@@ -1,0 +1,70 @@
+{# store_admin/fragments/menu_body.html — 카테고리별 메뉴 목록 (#menu-body 내용)
+   context: categories, error
+   카테고리 폼은 이 목록 전체를 다시 받아 교체한다. #}
+<div class="space-y-5">
+    {% if error %}
+        <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
+    {% endif %}
+
+    {# 상단: 안내 + 카테고리 추가 #}
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <p class="text-sm text-gray-500 font-medium">상태 버튼을 누르면 고객 메뉴에 바로 반영됩니다.</p>
+        <form hx-post="/admin/menu/categories" hx-target="#menu-body" hx-swap="innerHTML"
+              class="flex items-center gap-2">
+            <input type="text" name="name" required maxlength="50" placeholder="새 카테고리 이름"
+                   class="w-48 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit"
+                    class="shrink-0 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition active:scale-95 shadow-sm">
+                + 카테고리 추가
+            </button>
+        </form>
+    </div>
+
+    {% for cat in categories %}
+        <section class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden" x-data="{ editing: false }">
+            {# 카테고리 헤더 #}
+            <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+                <div x-show="!editing" class="flex items-center gap-2">
+                    <h2 class="text-base font-bold">{{ cat.name }}</h2>
+                    <span class="text-xs text-gray-400 font-medium">메뉴 {{ cat.items | length }}개 · 순서 {{ cat.display_order }}</span>
+                </div>
+                <form x-show="editing" x-cloak
+                      hx-post="/admin/menu/categories/{{ cat.id }}" hx-target="#menu-body" hx-swap="innerHTML"
+                      class="flex items-center gap-2">
+                    <input type="text" name="name" value="{{ cat.name }}" required maxlength="50" aria-label="카테고리 이름"
+                           class="w-40 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="number" name="display_order" value="{{ cat.display_order }}" min="0" aria-label="순서"
+                           class="w-20 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold">저장</button>
+                    <button type="button" @click="editing = false" class="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 text-xs font-semibold">취소</button>
+                </form>
+
+                <div class="flex items-center gap-1.5">
+                    <button type="button"
+                            hx-get="/admin/menu/items/new?category_id={{ cat.id }}" hx-target="#modal-container"
+                            class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition">+ 메뉴 추가</button>
+                    <button type="button" x-show="!editing" @click="editing = true"
+                            class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition">편집</button>
+                    <button type="button"
+                            hx-post="/admin/menu/categories/{{ cat.id }}/delete" hx-target="#menu-body" hx-swap="innerHTML"
+                            hx-confirm="'{{ cat.name }}' 카테고리를 삭제할까요?"
+                            class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-400 hover:text-red-500 text-xs font-semibold transition">삭제</button>
+                </div>
+            </div>
+
+            {# 메뉴 목록 #}
+            <div class="divide-y divide-gray-100">
+                {% for item in cat.items %}
+                    {% include "store_admin/fragments/menu_item_row.html" %}
+                {% else %}
+                    <p class="px-5 py-8 text-center text-sm text-gray-400">등록된 메뉴가 없습니다.</p>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <div class="py-24 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="text-base font-bold text-gray-500">카테고리가 없습니다.</p>
+            <p class="text-xs text-gray-400 mt-1">위에서 카테고리(예: 식사류, 음료)를 먼저 추가하세요.</p>
+        </div>
+    {% endfor %}
+</div>

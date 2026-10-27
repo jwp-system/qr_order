@@ -2,7 +2,7 @@
 import enum
 from typing import List, Optional
 from sqlalchemy import (
-    String, Integer, Boolean, ForeignKey, Text, Enum, UniqueConstraint, Index
+    String, Integer, Boolean, ForeignKey, Text, Enum, UniqueConstraint, Index, false
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,11 @@ class OrderStatus(str, enum.Enum):
 class OptionType(str, enum.Enum):
     SELECT = "SELECT"         # 단일 선택형 (라디오: 맵기 등)
     ADDITIONAL = "ADDITIONAL" # 다중 추가형 (체크박스/카운터: 공기밥 추가 등)
+
+class TableStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"   # 주문 가능
+    PAUSED = "PAUSED"         # 주문 중지: QR로 메뉴/주문 내역은 보이지만 새 주문 불가 (브레이크 타임, 예약석 등)
+    DISABLED = "DISABLED"     # 사용 안 함: QR 접속 불가
 
 class LicenseStatus(str, enum.Enum):
     TRIAL = "TRIAL"
@@ -51,7 +56,9 @@ class Table(Base, TimestampMixin):
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
     table_number: Mapped[int] = mapped_column(Integer, nullable=False)
     qr_token: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    status: Mapped[TableStatus] = mapped_column(
+        Enum(TableStatus), default=TableStatus.AVAILABLE, server_default=TableStatus.AVAILABLE.value, nullable=False
+    )
 
     __table_args__ = (
         UniqueConstraint("store_id", "table_number", name="uq_store_table_number"),
@@ -84,12 +91,18 @@ class Item(Base, TimestampMixin):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    is_sold_out: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    ## order 0 : 인기메뉴, order 1~8 : 일반메뉴, order 9 : 비인기메뉴 (정렬용)
-    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # 메뉴 상태 (domain/menu.py ITEM_FLAGS)
+    is_sold_out: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # 품절: 표시는 하되 주문 불가
+    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)  # 숨김: 고객 메뉴에서 제외
+    is_popular: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    is_new: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    is_recommended: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # 카테고리 안 정렬 (작을수록 위)
 
     category: Mapped["Category"] = relationship(back_populates="items")
-    option_groups: Mapped[List["OptionGroup"]] = relationship(back_populates="item", cascade="all, delete-orphan")
+    option_groups: Mapped[List["OptionGroup"]] = relationship(
+        back_populates="item", cascade="all, delete-orphan", order_by="OptionGroup.id"
+    )
 
 class OptionGroup(Base, TimestampMixin):
     __tablename__ = "option_groups"
@@ -102,7 +115,10 @@ class OptionGroup(Base, TimestampMixin):
     max_select: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     item: Mapped["Item"] = relationship(back_populates="option_groups")
-    details: Mapped[List["OptionDetail"]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    details: Mapped[List["OptionDetail"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan",
+        order_by="OptionDetail.display_order.asc(), OptionDetail.id.asc()",
+    )
 
 class OptionDetail(Base, TimestampMixin):
     __tablename__ = "option_details"

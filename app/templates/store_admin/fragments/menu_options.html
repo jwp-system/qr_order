@@ -1,0 +1,99 @@
+{# store_admin/fragments/menu_options.html — 메뉴 수정 모달 안의 옵션 패널 (#item-options)
+   context: item (option_groups/details 로드됨), option_types, options_error
+   모든 옵션 폼은 이 패널 전체를 다시 받아 교체한다 (outerHTML). #}
+{% set type_labels = {'SELECT': '단일 선택 (예: 맵기)', 'ADDITIONAL': '추가 선택 (예: 토핑)'} %}
+{% set input_cls = 'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500' %}
+{% set target = 'hx-target="#item-options" hx-swap="outerHTML"' %}
+
+{% macro group_fields(group=none) %}
+    <input type="text" name="name" required maxlength="50" placeholder="그룹 이름 (예: 맵기 선택)"
+           value="{{ group.name if group else '' }}" aria-label="옵션 그룹 이름" class="{{ input_cls }} flex-1 min-w-[10rem]">
+    <select name="option_type" aria-label="옵션 종류" class="{{ input_cls }}">
+        {% for t in option_types %}
+            <option value="{{ t.value }}" {% if group and group.option_type == t %}selected{% endif %}>{{ type_labels[t.value] }}</option>
+        {% endfor %}
+    </select>
+    <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+        <input type="checkbox" name="is_required" {% if group and group.is_required %}checked{% endif %}
+               class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"> 필수
+    </label>
+    <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-600" title="추가 선택형에서 고를 수 있는 최대 개수">
+        최대
+        <input type="number" name="max_select" min="1" max="99" value="{{ group.max_select if group else 1 }}"
+               class="{{ input_cls }} w-16">
+    </label>
+{% endmacro %}
+
+<section id="item-options" class="space-y-4 border-t border-gray-100 pt-6">
+    <div>
+        <h3 class="text-base font-bold">옵션</h3>
+        <p class="text-xs text-gray-400 mt-0.5">단일 선택은 하나만, 추가 선택은 '최대' 개수까지 고를 수 있습니다. 필수 그룹은 고객이 반드시 선택해야 합니다.</p>
+    </div>
+
+    {% if options_error %}
+        <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ options_error }}</div>
+    {% endif %}
+
+    {% for group in item.option_groups %}
+        <div class="rounded-2xl border border-gray-200 overflow-hidden">
+            {# 그룹 설정 #}
+            <div class="flex flex-wrap items-center gap-2 px-4 py-3 bg-gray-50">
+                <form hx-post="/admin/menu/groups/{{ group.id }}" {{ target|safe }}
+                      class="flex flex-wrap items-center gap-2 flex-1">
+                    {{ group_fields(group) }}
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-xs font-bold">저장</button>
+                </form>
+                <button type="button"
+                        hx-post="/admin/menu/groups/{{ group.id }}/delete" {{ target|safe }}
+                        hx-confirm="'{{ group.name }}' 옵션 그룹과 그 안의 옵션을 모두 삭제할까요?"
+                        class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-red-50 text-gray-400 hover:text-red-500 text-xs font-semibold">그룹 삭제</button>
+            </div>
+
+            {# 옵션 항목 #}
+            <div class="divide-y divide-gray-100">
+                {% for detail in group.details %}
+                    <div class="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                        <form hx-post="/admin/menu/details/{{ detail.id }}" {{ target|safe }}
+                              class="flex flex-wrap items-center gap-2 flex-1">
+                            <input type="text" name="name" required maxlength="50" value="{{ detail.name }}"
+                                   aria-label="옵션 이름" class="{{ input_cls }} flex-1 min-w-[8rem]">
+                            <label class="flex items-center gap-1 text-xs text-gray-500">
+                                +<input type="number" name="additional_price" min="0" step="100" value="{{ detail.additional_price }}"
+                                        aria-label="추가 금액" class="{{ input_cls }} w-24">원
+                            </label>
+                            <label class="flex items-center gap-1 text-xs text-gray-500">
+                                순서<input type="number" name="display_order" min="0" value="{{ detail.display_order }}"
+                                         class="{{ input_cls }} w-16">
+                            </label>
+                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold">저장</button>
+                        </form>
+                        <button type="button"
+                                hx-post="/admin/menu/details/{{ detail.id }}/delete" {{ target|safe }}
+                                hx-confirm="'{{ detail.name }}' 옵션을 삭제할까요?"
+                                class="px-2.5 py-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 text-xs font-semibold">삭제</button>
+                    </div>
+                {% else %}
+                    <p class="px-4 py-3 text-xs text-gray-400">옵션 항목이 없습니다. 아래에서 추가하세요.</p>
+                {% endfor %}
+
+                <form hx-post="/admin/menu/groups/{{ group.id }}/details" {{ target|safe }}
+                      class="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-blue-50/30">
+                    <input type="text" name="name" required maxlength="50" placeholder="새 옵션 (예: 매운맛)"
+                           aria-label="새 옵션 이름" class="{{ input_cls }} flex-1 min-w-[8rem]">
+                    <label class="flex items-center gap-1 text-xs text-gray-500">
+                        +<input type="number" name="additional_price" min="0" step="100" value="0"
+                                aria-label="추가 금액" class="{{ input_cls }} w-24">원
+                    </label>
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">+ 옵션 추가</button>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
+
+    {# 새 옵션 그룹 #}
+    <form hx-post="/admin/menu/items/{{ item.id }}/groups" {{ target|safe }}
+          class="flex flex-wrap items-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200">
+        {{ group_fields() }}
+        <button type="submit" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">+ 그룹 추가</button>
+    </form>
+</section>

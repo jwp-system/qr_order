@@ -1,0 +1,123 @@
+{# store_admin/fragments/table_grid.html — 오늘 매출 요약 + 테이블별 정산 카드 (#board-container 내용)
+   context: tables (TableSummary 목록), today (TodaySummary), flash ({ok, text} | 없음)
+   마감 버튼은 화면에서 본 주문 id를 함께 보내, 그 사이 새 주문이 생겼으면 서버가 마감을 거부한다. #}
+{% set in_use = tables | selectattr('orders') | list %}
+
+{% if flash %}
+    <div id="settle-flash" hx-swap-oob="true">
+        <div role="{{ 'status' if flash.ok else 'alert' }}"
+             class="rounded-xl px-4 py-3 text-sm font-medium border
+                    {{ 'bg-emerald-50 border-emerald-100 text-emerald-700' if flash.ok else 'bg-red-50 border-red-100 text-red-600' }}">
+            {{ flash.text }}
+        </div>
+    </div>
+{% endif %}
+
+{# 요약 #}
+<section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+        <span class="text-xs font-bold text-gray-500">오늘 정산 매출</span>
+        <div class="text-2xl font-black mt-2 tracking-tight">{{ "{:,}".format(today.completed_amount) }}원</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+        <span class="text-xs font-bold text-gray-500">오늘 마감 / 취소</span>
+        <div class="text-2xl font-black mt-2 tracking-tight">{{ today.completed_count }}건
+            <span class="text-base font-bold text-gray-400">/ {{ today.cancelled_count }}건</span></div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border-2 border-blue-300">
+        <span class="text-xs font-bold text-blue-600">이용 중 테이블</span>
+        <div class="text-2xl font-black mt-2 tracking-tight text-blue-600">{{ in_use | length }} / {{ tables | length }}</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+        <span class="text-xs font-bold text-orange-500">미정산 금액</span>
+        <div class="text-2xl font-black mt-2 tracking-tight text-orange-500">{{ "{:,}".format(in_use | sum(attribute='total')) }}원</div>
+    </div>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for t in tables %}
+        {% if t.orders %}
+            <article class="h-full rounded-3xl border bg-white p-5 shadow-sm flex flex-col justify-between
+                            {{ 'border-emerald-300' if t.can_close else 'border-gray-200' }}">
+                <div>
+                    <div class="flex items-center justify-between text-xs mb-3">
+                        {% if t.can_close %}
+                            <span class="px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-600">정산 가능</span>
+                        {% else %}
+                            <span class="px-2.5 py-1 rounded-full font-bold bg-amber-50 text-amber-600">진행 중 {{ t.pending | length }}건</span>
+                        {% endif %}
+                        <span class="text-gray-400 font-medium">
+                            주문 {{ t.orders | length }}건 · 첫 주문
+                            <span class="time-ago" data-created-at="{{ t.started_at.isoformat() }}">{{ t.started_at | time_ago }}</span>
+                        </span>
+                    </div>
+
+                    <h2 class="text-xl font-bold mb-3">
+                        {{ t.table.table_number }} 테이블
+                        {% if t.table.status.value != 'AVAILABLE' %}<span class="text-xs font-semibold text-gray-400">({{ TABLE_STATUS_META[t.table.status].label }})</span>{% endif %}
+                    </h2>
+
+                    {# 메뉴별 합산 #}
+                    <div class="bg-slate-50/70 rounded-2xl p-3.5 space-y-2 mb-3">
+                        {% for line in t.lines %}
+                            <div class="flex justify-between gap-3 text-sm">
+                                <div class="min-w-0">
+                                    <span class="font-medium text-gray-800">{{ line.name }}</span>
+                                    <span class="text-xs font-bold text-blue-600 ml-1">×{{ line.quantity }}</span>
+                                    {% if line.options %}
+                                        <p class="text-[11px] text-gray-400 truncate">{{ line.options | join(', ') }}</p>
+                                    {% endif %}
+                                </div>
+                                <span class="shrink-0 font-semibold text-gray-700">{{ "{:,}".format(line.amount) }}원</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="flex items-baseline justify-between mb-3">
+                        <span class="text-sm font-bold text-gray-500">합계</span>
+                        <span class="text-2xl font-black tracking-tight">{{ "{:,}".format(t.total) }}원</span>
+                    </div>
+
+                    {% if t.pending %}
+                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 rounded-xl px-3 py-2 mb-3">
+                            서빙 완료되지 않은 주문
+                            {% for o in t.pending %}#{{ o.id }}({{ STATUS_META[o.status].label }}){{ ', ' if not loop.last }}{% endfor %}
+                            — 주문 현황에서 처리하거나 취소해야 마감할 수 있습니다.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <button type="button"
+                        hx-post="/admin/settlement/tables/{{ t.table.id }}/close"
+                        hx-vals='{"order_ids": "{{ t.order_ids }}"}'
+                        hx-target="#board-container" hx-swap="innerHTML"
+                        hx-disabled-elt="this"
+                        hx-confirm="{{ t.table.table_number }}번 테이블 {{ t.orders | length }}건, {{ '{:,}'.format(t.total) }}원 정산을 완료하고 주문을 마감할까요?"
+                        {% if not t.can_close %}disabled{% endif %}
+                        class="w-full py-3 rounded-xl font-bold text-sm transition
+                               {{ 'bg-gray-800 hover:bg-gray-900 text-white shadow-sm active:scale-[0.98]' if t.can_close else 'bg-gray-100 text-gray-400 cursor-not-allowed' }}">
+                    정산 완료 · 마감
+                </button>
+            </article>
+        {% endif %}
+    {% endfor %}
+
+    {# 빈 테이블은 작게 #}
+    {% set empty = tables | rejectattr('orders') | list %}
+    {% if empty %}
+        <div class="md:col-span-2 lg:col-span-3 bg-white rounded-2xl border border-dashed border-gray-200 p-4">
+            <p class="text-xs font-bold text-gray-400 mb-2">빈 테이블 {{ empty | length }}개</p>
+            <div class="flex flex-wrap gap-1.5">
+                {% for t in empty %}
+                    <span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-400 text-xs font-semibold">{{ t.table.table_number }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not tables %}
+        <div class="col-span-full py-24 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="text-base font-bold text-gray-500">등록된 테이블이 없습니다.</p>
+        </div>
+    {% endif %}
+</div>

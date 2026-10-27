@@ -9,3 +9,8 @@ class Role(str, enum.Enum):
     ADMIN = "admin"
     KITCHEN = "kitchen"
     HALL = "hall"
+
+
+def can_view_board(session_role: Role, board_role: Role) -> bool:
+    """로그인한 역할이 해당 역할의 보드를 쓸 수 있는가. 관리자는 모든 보드, 그 외는 자기 보드만."""
+    return session_role is Role.ADMIN or session_role is board_role

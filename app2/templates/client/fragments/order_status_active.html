@@ -1,8 +1,0 @@
-{# client/fragments/order_status_active.html — 진행 중 주문 건수 배지
-   헤더 최초 렌더(include)와 이벤트 갱신(/orders/active)이 같은 마크업을 쓴다.
-   context: active_order_count #}
-{% if active_order_count and active_order_count > 0 %}
-    <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
-        {{ active_order_count }}
-    </span>
-{% endif %}

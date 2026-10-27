@@ -17,12 +17,16 @@
 
     <div class="flex-1 pr-3">
         <div class="flex items-center gap-1.5 mb-1">
-            {% if item.display_order == 0 %}
-                <span class="text-[11px] font-bold text-[#E84057] bg-rose-50 px-1.5 py-0.5 rounded-md">인기</span>
-            {% endif %}
-            {% if sold_out %}
-                <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md">품절</span>
-            {% endif %}
+            {# 배지: domain/menu.py ITEM_FLAGS 중 customer_badge인 상태 #}
+            {% set badge_cls = {
+              'is_sold_out':    'text-gray-500 bg-gray-100',
+              'is_popular':     'text-[#E84057] bg-rose-50',
+              'is_new':         'text-amber-600 bg-amber-50',
+              'is_recommended': 'text-[#3182F6] bg-[#E8F3FF]',
+            } %}
+            {% for flag, meta in ITEM_FLAGS.items() if meta.customer_badge and item[flag] %}
+                <span class="text-[11px] font-bold {{ badge_cls[flag] }} px-1.5 py-0.5 rounded-md">{{ meta.label }}</span>
+            {% endfor %}
             <h2 class="text-base font-bold text-[#191F28]">{{ item.name }}</h2>
         </div>
         <p class="text-xs text-[#8B95A1] line-clamp-2 leading-relaxed">{{ item.description }}</p>

@@ -1,6 +1,7 @@
 {# common/order_card.html — 공통 주문 카드 (관리자 / 주방 / 홀)
    context: order, role ('admin' | 'kitchen' | 'hall')
-   버튼은 STATUS_META(next / allowed) + 역할 권한(role_can)으로 자동 결정된다. #}
+   버튼은 STATUS_META(next / allowed) + 역할 권한(role_can)으로 자동 결정된다.
+   서버는 role 값이 아니라 로그인 세션의 역할로 권한을 다시 검증한다. #}
 {% set meta = STATUS_META[order.status] %}
 {% set st = order.status.value %}
 {% set cancelled = (st == 'CANCELLED') %}
@@ -36,7 +37,7 @@
 
 {% macro action_btn(order_id, role, target, label, cls, confirm=None) -%}
   <button type="button"
-          hx-post="/admin/orders/{{ order_id }}/advance"
+          hx-post="/staff/orders/{{ order_id }}/advance"
           hx-vals='{"target": "{{ target }}", "role": "{{ role }}"}'
           hx-target="#order-card-{{ order_id }}"
           hx-swap="outerHTML"

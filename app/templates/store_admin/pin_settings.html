@@ -1,0 +1,89 @@
+{# store_admin/pin_settings.html — 관리자 PIN 변경 (관리자/주방/홀)
+   context: store, roles [(value, label)], default_roles [기본 PIN을 쓰는 역할 값], next, error, message
+   default_roles가 있으면 강제 변경 모드: 해당 역할 PIN은 필수이고 다른 화면으로 나갈 수 없다.
+   제출은 일반 폼 POST /admin/pin, 성공 시 303 리다이렉트. #}
+{% extends "base.html" %}
+
+{% set forced = default_roles | length > 0 %}
+
+{% block title %}{{ store.name }} - PIN 변경{% endblock %}
+
+{% block header %}
+<header class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
+    <h1 class="text-lg font-bold">{{ store.name }} - PIN 변경</h1>
+    <div class="flex items-center gap-4">
+        {% if not forced %}
+            <a href="/admin/orders" class="text-xs font-semibold text-white/80 hover:text-white hover:underline underline-offset-2">주문 현황으로</a>
+        {% endif %}
+        <form method="post" action="/logout">
+            <button type="submit" class="text-xs font-semibold text-white/80 hover:text-white underline-offset-2 hover:underline">로그아웃</button>
+        </form>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-6">
+    <form method="post" action="/admin/pin" autocomplete="off"
+          class="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div>
+            <h2 class="text-lg font-bold">PIN 변경</h2>
+            {% if forced %}
+                <p class="text-sm text-gray-500 mt-1">
+                    기본 PIN을 사용 중입니다. 매장 보안을 위해 <strong class="text-gray-900">기본 PIN 표시가 있는 항목</strong>을 변경해야 계속 사용할 수 있습니다.
+                </p>
+            {% else %}
+                <p class="text-sm text-gray-500 mt-1">바꿀 항목만 입력하세요. 비워 둔 PIN은 그대로 유지됩니다.</p>
+            {% endif %}
+        </div>
+
+        {% if error %}
+            <div role="alert" class="rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium px-4 py-3">{{ error }}</div>
+        {% endif %}
+        {% if message %}
+            <div role="status" class="rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium px-4 py-3">{{ message }}</div>
+        {% endif %}
+
+        {% macro pin_input(name, label, required=false, is_default=false) %}
+            <div>
+                <label for="{{ name }}" class="flex items-center gap-2 text-xs font-bold text-gray-500 mb-1.5">
+                    {{ label }}
+                    {% if is_default %}
+                        <span class="px-2 py-0.5 rounded-full bg-orange-50 text-orange-500 text-[11px]">기본 PIN 사용 중</span>
+                    {% endif %}
+                </label>
+                <input type="password" id="{{ name }}" name="{{ name }}"
+                       inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off"
+                       placeholder="숫자 4자리" {% if required %}required{% endif %}
+                       class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base font-semibold tracking-[0.5em]
+                              placeholder:tracking-normal placeholder:font-normal placeholder:text-gray-300
+                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white">
+            </div>
+        {% endmacro %}
+
+        {{ pin_input("current_pin", "현재 관리자 PIN", required=true) }}
+
+        <hr class="border-gray-100">
+
+        {% for value, label in roles %}
+            {% set is_default = value in default_roles %}
+            {{ pin_input(value ~ "_pin", "새 " ~ label ~ " PIN", required=is_default, is_default=is_default) }}
+            {% if value == "admin" %}
+                {{ pin_input("admin_pin_confirm", "새 관리자 PIN 확인", required=is_default) }}
+            {% endif %}
+        {% endfor %}
+
+        <ul class="text-xs text-gray-400 space-y-1 list-disc pl-4">
+            <li>기본 PIN(1234 / 0000 / 1111)은 사용할 수 없습니다.</li>
+            <li>관리자 PIN은 주방·홀 PIN과 달라야 합니다.</li>
+        </ul>
+
+        <button type="submit"
+                class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold transition">
+            PIN 변경
+        </button>
+    </form>
+</div>
+{% endblock %}

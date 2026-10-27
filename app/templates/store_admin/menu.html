@@ -1,0 +1,50 @@
+{# store_admin/menu.html — 매장 관리자 메뉴 관리
+   context: store, categories (items/option_groups 로드됨), error
+   목록(#menu-body)은 서버가 HX-Trigger: menu-changed를 보내면 /admin/menu/body로 다시 그린다.
+   메뉴 추가/수정은 #modal-container(base.html)에 모달로 열린다. #}
+{% extends "base.html" %}
+
+{% block title %}{{ store.name }} - 메뉴 관리{% endblock %}
+
+{% block header %}
+<header class="bg-blue-600 text-white px-6 py-4 flex justify-between items-center shadow-md">
+    <h1 class="text-lg font-bold">{{ store.name }} - 메뉴 관리</h1>
+    <nav class="flex items-center gap-4 text-xs font-semibold">
+        {% with active = 'menu' %}{% include "store_admin/fragments/admin_nav.html" %}{% endwith %}
+        <form method="post" action="/logout">
+            <button type="submit" class="text-white/80 hover:text-white hover:underline underline-offset-2">로그아웃</button>
+        </form>
+    </nav>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-2">
+    <div id="menu-body"
+         hx-get="/admin/menu/body"
+         hx-trigger="menu-changed from:body"
+         hx-swap="innerHTML">
+        {% include "store_admin/fragments/menu_body.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    // 폼 검증 실패(422)도 오류가 표시된 폼으로 교체되도록 허용
+    document.addEventListener('htmx:beforeSwap', (e) => {
+        if (e.detail.xhr.status === 422) {
+            e.detail.shouldSwap = true;
+            e.detail.isError = false;
+        }
+    });
+
+    const modal = () => document.getElementById('modal-container');
+    window.closeMenuModal = () => { modal().innerHTML = ''; };
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal().innerHTML.trim()) window.closeMenuModal();
+    });
+})();
+</script>
+{% endblock %}
