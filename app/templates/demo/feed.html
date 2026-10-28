@@ -1,0 +1,50 @@
+{# demo/feed.html — 랜딩 '주문 입력 테스트'의 공개 주방 보드 (#board-container 내용)
+   context: orders (데모 매장 진행 중 주문, 최신순), next_action ({상태: 다음 단계 버튼명}), error
+   방문자가 아무 글이나 쓸 수 있으므로 요청사항은 보여주지 않는다. #}
+{% set badge_cls = {
+  'ORDERED':  'bg-blue-50 text-blue-600',
+  'ACCEPTED': 'bg-blue-50 text-blue-600',
+  'COOKING':  'bg-orange-50 text-orange-600',
+  'COOKED':   'bg-orange-50 text-orange-600',
+  'SERVED':   'bg-emerald-50 text-emerald-600',
+} %}
+{% set btn_cls = {
+  'ORDERED':  'bg-toss-blue hover:bg-toss-hoverBlue',
+  'ACCEPTED': 'bg-orange-500 hover:bg-orange-600',
+  'COOKING':  'bg-orange-500 hover:bg-orange-600',
+  'COOKED':   'bg-emerald-600 hover:bg-emerald-700',
+  'SERVED':   'bg-toss-dark hover:bg-black',
+} %}
+{% if error %}
+    <p role="status" class="mb-3 rounded-xl bg-toss-lightGray text-toss-gray text-xs font-semibold px-3 py-2">{{ error }}</p>
+{% endif %}
+{% if orders %}
+    <ul class="space-y-2.5">
+        {% for o in orders %}
+            {% set st = o.status.value %}
+            <li class="rounded-2xl border border-toss-border bg-white p-4 flex items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="font-black text-sm">{{ o.table.table_number }}번 테이블</span>
+                        <span class="px-2 py-0.5 rounded-full font-bold {{ badge_cls[st] }}">{{ STATUS_META[o.status].label }}</span>
+                        <span class="text-toss-gray time-ago" data-created-at="{{ o.created_at.isoformat() }}">{{ o.created_at | time_ago }}</span>
+                    </div>
+                    <p class="text-sm text-toss-dark font-medium mt-1 truncate">
+                        {% for item in o.items %}{{ item.item_name }} ×{{ item.quantity }}{{ ', ' if not loop.last }}{% endfor %}
+                    </p>
+                </div>
+                <button type="button"
+                        hx-post="/demo/orders/{{ o.id }}/advance" hx-target="#board-container" hx-swap="innerHTML"
+                        hx-disabled-elt="this"
+                        class="shrink-0 px-3.5 py-2.5 rounded-xl text-white text-xs font-bold transition active:scale-95 {{ btn_cls[st] }}">
+                    {{ next_action[o.status] }}
+                </button>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <div class="py-12 text-center rounded-2xl border-2 border-dashed border-toss-border">
+        <p class="font-bold text-toss-gray">아직 들어온 주문이 없어요</p>
+        <p class="text-xs text-toss-gray mt-1">왼쪽 QR로 주문하면 여기에 바로 나타납니다.</p>
+    </div>
+{% endif %}

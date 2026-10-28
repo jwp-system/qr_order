@@ -1,6 +1,6 @@
 {# public/base.html — 공개 화면 공통 레이아웃 (랜딩 /, 문의 게시판 /inquiries)
    context: SITE (templating 전역: name, operator, email, business_info)
-   블록: title, description, content #}
+   블록: title, description, head (추가 head 요소), content, scripts (body 끝 스크립트) #}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -39,6 +39,7 @@
         html { scroll-behavior: smooth; }
         section[id] { scroll-margin-top: 5rem; }
     </style>
+    {% block head %}{% endblock %}
 </head>
 <body class="bg-white text-toss-dark font-sans antialiased selection:bg-blue-100">
 
@@ -84,6 +85,8 @@
         </div>
     </div>
 </footer>
+
+{% block scripts %}{% endblock %}
 
 </body>
 </html>

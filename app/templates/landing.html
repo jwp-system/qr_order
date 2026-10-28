@@ -1,5 +1,5 @@
 {# landing.html — 서비스 소개 (/)  (레이아웃: public/base.html)
-   context: demo ({order_url, kitchen_url, kitchen_pin} | None — routers/landing.py 참고), recent_inquiries
+   context: demo ({order_url, table_number} | None — services/demo_service.landing_context), recent_inquiries
    원칙: 1인 개발·운영 서비스. 실제 구현된 기능과 실제 상황만 적는다 (수치·후기·기능 과장 금지).
    문의는 문의 게시판(/inquiries)으로 받는다. 스크린샷: static/landing/ (README의 images/와 같은 파일) #}
 {% extends "public/base.html" %}
@@ -167,25 +167,71 @@
 
     <!-- 데모 -->
     <section id="demo" class="px-5 py-20 bg-toss-bg">
-        <div class="max-w-4xl mx-auto">
+        <div class="{{ 'max-w-6xl' if demo else 'max-w-4xl' }} mx-auto">
             {% if demo %}
-                <div class="bg-white rounded-3xl border border-toss-border p-8 sm:p-10 grid md:grid-cols-2 gap-8 items-center">
-                    <div class="space-y-4">
-                        <p class="{{ eyebrow }}">DEMO</p>
-                        <h2 class="text-2xl sm:text-3xl font-black leading-tight">휴대폰으로 찍고,<br>주방 화면에서 확인해 보세요</h2>
-                        <ol class="space-y-2 text-sm text-toss-gray font-medium">
-                            <li><strong class="text-toss-dark">1.</strong> PC에서 주방 화면을 엽니다{% if demo.kitchen_pin %} (PIN <strong class="text-toss-dark">{{ demo.kitchen_pin }}</strong>){% endif %}.</li>
-                            <li><strong class="text-toss-dark">2.</strong> 휴대폰 카메라로 오른쪽 QR을 찍어 주문합니다.</li>
-                            <li><strong class="text-toss-dark">3.</strong> 주방 화면에 주문이 바로 나타납니다.</li>
+                {# 주문 입력 테스트: 왼쪽 테이블 QR 카드, 오른쪽 공개 주방 보드 (routers/demo.py, 실시간 갱신은 SSE) #}
+                <div class="text-center mb-10 space-y-3">
+                    <p class="{{ eyebrow }}">TRY IT</p>
+                    <h2 class="{{ h2 }}">주문 입력 테스트 해보기</h2>
+                    <p class="text-toss-gray font-medium">휴대폰으로 QR을 찍어 주문하면 오른쪽 주방 화면에 바로 나타납니다.<br class="hidden sm:inline">
+                        버튼을 눌러 조리부터 서빙, 마감까지 직접 넘겨 보세요. 손님 화면의 주문 상태도 함께 바뀝니다.</p>
+                    <p class="text-sm text-toss-gray font-medium">
+                        우리 매장 메뉴로 실제처럼 체험해 보고 싶다면
+                        <a href="/inquiries/new?type=trial" class="font-bold text-toss-blue hover:underline">트라이얼·데모 요청</a>을 남겨 주세요.
+                        확인 후 연락드리겠습니다.
+                    </p>
+                </div>
+                <div class="grid lg:grid-cols-5 gap-6 items-start">
+                    {# 테이블 QR 카드 #}
+                    <div class="lg:col-span-2 bg-white rounded-3xl border border-toss-border p-6 space-y-5">
+                        <h3 class="text-lg font-black">{{ demo.table_number }}번 테이블 QR</h3>
+                        <div class="hidden sm:block text-center">
+                            <img src="/demo/qr.png" alt="{{ demo.table_number }}번 테이블 주문 QR"
+                                 class="w-56 h-56 mx-auto rounded-2xl border border-toss-border p-2 bg-white">
+                            <p class="text-xs text-toss-gray font-semibold mt-2">휴대폰 카메라로 찍어 보세요</p>
+                        </div>
+                        <a href="{{ demo.order_url }}" target="_blank" rel="noopener" class="sm:hidden w-full {{ primary_btn }}">이 휴대폰으로 주문해 보기</a>
+                        <button type="button" onclick="openDemoPhone()" class="hidden sm:flex w-full {{ secondary_btn }}">휴대폰이 없다면 여기서 주문해 보기</button>
+                        <ol class="space-y-1.5 text-sm text-toss-gray font-medium border-t border-toss-border pt-4">
+                            <li><strong class="text-toss-dark">1.</strong> QR을 찍거나 위 버튼으로 손님 화면을 엽니다</li>
+                            <li><strong class="text-toss-dark">2.</strong> 메뉴를 담고 주문합니다</li>
+                            <li><strong class="text-toss-dark">3.</strong> 주방 화면에서 버튼을 눌러 단계를 넘겨 봅니다</li>
                         </ol>
-                        <a href="{{ demo.kitchen_url }}" target="_blank" rel="noopener" class="{{ primary_btn }}">주방 화면 열기</a>
-                        <p class="text-xs text-toss-gray">데모 매장의 주문은 다른 방문자에게도 보입니다.</p>
                     </div>
-                    <div class="text-center">
-                        <img src="/demo/qr.png" alt="데모 매장 주문 QR" class="w-52 h-52 mx-auto rounded-2xl border border-toss-border">
-                        <a href="{{ demo.order_url }}" target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-bold text-toss-blue hover:underline">휴대폰이 없다면 여기서 손님 화면 열기</a>
+
+                    {# 공개 주방 보드 #}
+                    <div class="lg:col-span-3 bg-white rounded-3xl border border-toss-border p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <span id="live-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 opacity-40" title="실시간 연결 상태"></span>
+                                <h3 class="text-lg font-black">주방 화면</h3>
+                                <span class="text-xs text-toss-gray font-semibold">실시간</span>
+                            </div>
+                            <span class="text-xs text-toss-gray">데모 매장</span>
+                        </div>
+                        <div id="board-container"
+                             data-events-url="/demo/events"
+                             hx-get="/demo/feed"
+                             hx-trigger="load, board-refresh delay:300ms"
+                             hx-swap="innerHTML">
+                            <p class="py-12 text-center text-sm text-toss-gray">주방 화면을 불러오는 중…</p>
+                        </div>
+                        <p class="text-xs text-toss-gray mt-4">체험용 데모 매장입니다. 다른 방문자의 주문도 함께 보이며, 주문은 30분 뒤 자동으로 지워집니다.</p>
                     </div>
                 </div>
+
+                {# PC에서 휴대폰 없이 체험: 손님 화면을 휴대폰 크기 창으로 #}
+                <dialog id="demo-phone" class="rounded-[2rem] p-0 backdrop:bg-black/50 bg-transparent">
+                    <div class="bg-toss-dark p-3 rounded-[2rem] shadow-2xl">
+                        <div class="flex justify-between items-center px-2 pb-2">
+                            <span class="text-xs font-bold text-white/80">손님 화면 ({{ demo.table_number }}번 테이블)</span>
+                            <button type="button" onclick="document.getElementById('demo-phone').close()" aria-label="닫기"
+                                    class="text-white/70 hover:text-white text-xl leading-none px-1">&times;</button>
+                        </div>
+                        <iframe data-src="{{ demo.order_url }}" title="데모 손님 주문 화면"
+                                class="w-[360px] max-w-[85vw] h-[680px] max-h-[75vh] rounded-[1.5rem] bg-white"></iframe>
+                    </div>
+                </dialog>
             {% else %}
                 <div class="bg-white rounded-3xl border border-toss-border p-8 sm:p-10 text-center space-y-4">
                     <p class="{{ eyebrow }}">DEMO</p>
@@ -370,4 +416,21 @@
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+{% if demo %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<script src="{{ url_for('static', path='js/live_events.js') }}" defer></script>
+<script src="{{ url_for('static', path='js/staff/board_live.js') }}" defer></script>
+<script>
+    // 휴대폰 크기 창은 열 때 처음 불러온다 (랜딩만 보는 방문자에게는 손님 화면을 불러오지 않도록)
+    function openDemoPhone() {
+        const dialog = document.getElementById('demo-phone');
+        const frame = dialog.querySelector('iframe');
+        if (!frame.src) frame.src = frame.dataset.src;
+        dialog.showModal();
+    }
+</script>
+{% endif %}
 {% endblock %}

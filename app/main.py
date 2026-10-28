@@ -1,5 +1,6 @@
 # app/main.py
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
@@ -10,15 +11,20 @@ from app.core.config import settings
 from app.core.events import broker
 from app.core.security import require_super_admin
 from app.database.session import engine
+from app.services import demo_service
 from app.routers import (
-    auth, client, events, inquiries, landing, menu, store, super_admin, super_auth, support, tables,
+    auth, client, demo, events, inquiries, landing, menu, store, super_admin, super_auth, support, tables,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     broker.start()  # 주문 변경 LISTEN 시작 (SSE 푸시)
+    demo_cleanup = asyncio.create_task(demo_service.cleanup_forever())  # 데모 매장 오래된 주문 정리
     yield
+    demo_cleanup.cancel()
+    with suppress(asyncio.CancelledError):
+        await demo_cleanup
     await broker.stop()  # 열린 SSE 스트림 종료
     await engine.dispose()  # DB 커넥션 풀 정리
 
@@ -51,7 +57,8 @@ def _register_routes(app: FastAPI) -> None:
         )
 
     # tags는 각 라우터에 정의되어 있으므로 include 시 다시 넣지 않는다 (OpenAPI 중복 방지)
-    app.include_router(landing.router)      # 서비스 소개 (/), 데모 QR
+    app.include_router(landing.router)      # 서비스 소개 (/)
+    app.include_router(demo.router)         # 랜딩 '주문 입력 테스트' 공개 데모 (/demo/*)
     app.include_router(inquiries.router)    # 문의 게시판 (/inquiries)
     app.include_router(auth.router)         # 스태프 로그인/로그아웃
     app.include_router(client.router)       # 고객 주문

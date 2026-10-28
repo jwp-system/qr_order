@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     OPERATOR_NAME: str = "박종욱"                      # 운영자 (1인 개발/운영)
     CONTACT_EMAIL: str = "jw.park363@gmail.com"       # 도입 문의 메일
     BUSINESS_INFO: str | None = None                   # 하단 사업자 정보 한 줄 (상호 · 대표자 · 사업자등록번호 등)
-    # 데모 매장: 둘 다 설정되면 랜딩에 데모 QR과 직원 화면 링크를 보여준다. 없으면 '데모 요청' 버튼만.
-    DEMO_QR_TOKEN: str | None = None                   # 데모 매장 테이블의 qr_token
-    DEMO_SERVICE_CODE: str | None = None               # 데모 매장 코드 (직원 로그인 화면에 미리 채움)
-    DEMO_KITCHEN_PIN: str | None = None                # 데모 주방 PIN (공개해도 되는 값으로)
+    # 랜딩 '주문 입력 테스트' 데모 매장 (seed.py). 둘 다 설정되면 랜딩에 QR과 공개 주방 보드를 보여준다.
+    # 이 매장의 주문은 30분 뒤 자동 삭제되므로 운영 매장 코드를 넣지 말 것 (services/demo_service.py).
+    DEMO_QR_TOKEN: str | None = None                   # 데모 테이블의 qr_token
+    DEMO_SERVICE_CODE: str | None = None               # 데모 매장 코드
 
     # 테이블 QR에 넣을 고객 접속 주소 (예: https://order.example.com).
     # 비우면 관리자가 접속한 주소를 쓴다 (localhost로 접속하면 휴대폰에서 열리지 않으니 운영 시 설정할 것).

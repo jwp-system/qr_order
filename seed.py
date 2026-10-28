@@ -1,20 +1,19 @@
-# seed.py
+# seed.py — 데모 전용 매장 생성 (랜딩 '주문 입력 테스트'에서 쓴다)
+#   .env: DEMO_SERVICE_CODE=STORE-SEOUL-001, DEMO_QR_TOKEN=TOKEN_TABLE_01
+#   토큰이 고정값이므로 운영 매장에는 절대 이 방식으로 테이블을 만들지 말 것 (새 매장은 무작위 토큰).
 import asyncio
-import hashlib
+from app.core.security import hash_pin
 from app.database.session import AsyncSessionLocal
 from app.database.models import (
     Store, Table, Category, Item, OptionGroup, OptionDetail,
     OptionType, LicenseStatus
 )
 
-def hash_pin(pin: str) -> str:
-    return hashlib.sha256(pin.encode()).hexdigest()
-
 async def populate_seed_data():
     async with AsyncSessionLocal() as session:
         # 1. 매장 생성
         store = Store(
-            name="명품 토종 순대국 본점",
+            name="명품 토종 순대국 본점(데모)",
             service_code="STORE-SEOUL-001",
             license_status=LicenseStatus.ACTIVE,
             admin_pin=hash_pin("1234"),

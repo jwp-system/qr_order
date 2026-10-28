@@ -72,6 +72,15 @@ async def super_dashboard(
     )
 
 
+STORE_NAME_MAX = 100  # Store.name 컬럼 길이
+
+
+def _clean_store_name(value: str) -> str | None:
+    """앞뒤 공백 제거 후 1~100자면 그 값, 아니면 None"""
+    name = (value or "").strip()
+    return name if 0 < len(name) <= STORE_NAME_MAX else None
+
+
 @router.post("/stores", response_class=HTMLResponse)
 async def create_store(
     request: Request,
@@ -81,6 +90,9 @@ async def create_store(
     db: AsyncSession = Depends(get_db)
 ):
     """신규 식당 승인 및 테넌트 서비스 코드 발급"""
+    name = _clean_store_name(name)
+    if name is None:
+        raise HTTPException(status_code=422, detail=f"식당명은 1~{STORE_NAME_MAX}자로 입력해 주세요.")
     # 1. 고유 서비스 코드 생성 (예: STORE-A1B2C3D4)
     service_code = f"STORE-{secrets.token_hex(4).upper()}"
 
@@ -157,6 +169,30 @@ async def update_store_license(
             "license_statuses": LicenseStatus
         }
     )
+
+
+@router.post("/stores/{store_id}/name", response_class=HTMLResponse)
+async def update_store_name(
+    request: Request,
+    store_id: int,
+    name: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    """식당명 변경. 매장 관리자/주방/홀 화면 헤더와 손님 주문 화면에 바로 반영된다 (서비스 코드는 그대로)."""
+    stmt = select(Store).options(selectinload(Store.tables)).where(Store.id == store_id)
+    store = (await db.execute(stmt)).scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="매장을 찾을 수 없습니다.")
+
+    context = {"store": store, "license_statuses": LicenseStatus}
+    cleaned = _clean_store_name(name)
+    if cleaned is None:
+        context["name_error"] = f"식당명은 1~{STORE_NAME_MAX}자로 입력해 주세요."
+    elif cleaned != store.name:
+        store.name = cleaned
+        await db.commit()
+        context["alert_msg"] = "식당명이 변경되었습니다."
+    return templates.TemplateResponse(request=request, name="super_admin/fragments/store_row.html", context=context)
 
 
 @router.post("/stores/{store_id}/reset-pins", response_class=HTMLResponse)
