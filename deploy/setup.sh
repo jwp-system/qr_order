@@ -23,7 +23,11 @@ if [ ! -f .env ]; then
     echo ".env를 만들었습니다. 비밀번호/SECRET_KEY를 채운 뒤 다시 실행하세요."
     exit 1
 fi
-set -a; . ./.env; set +a
+# .env는 bash 문법이 아니므로(공백 포함 값 등) source하지 않고 필요한 값만 읽는다
+env_get() { grep -E "^$1=" .env | tail -n1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'; }
+POSTGRES_USER="$(env_get POSTGRES_USER)"
+POSTGRES_PASSWORD="$(env_get POSTGRES_PASSWORD)"
+POSTGRES_DB="$(env_get POSTGRES_DB)"
 
 # 4. DB 사용자/데이터베이스 생성 (이미 있으면 건너뜀)
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}'" | grep -q 1 \
