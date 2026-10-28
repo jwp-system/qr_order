@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Secrets / local tooling
+.env
+.ruff_cache/
