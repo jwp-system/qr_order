@@ -1,14 +1,16 @@
-{# public/base.html — 공개 화면 공통 레이아웃 (랜딩 /, 문의 게시판 /inquiries)
-   context: SITE (templating 전역: name, operator, email, business_info)
-   블록: title, description, head (추가 head 요소), content, scripts (body 끝 스크립트) #}
+{# public/base.html — 공개 화면 공통 레이아웃. 기본값은 회사(JWP-SYSTEM) 화면: 첫 화면 /, 문의 /contact
+   제품(세부 시스템) 화면은 public/qr_base.html 처럼 이 파일을 확장해 아이콘·로고·메뉴·바닥글 링크를 바꾼다.
+   context: SITE (templating 전역: name, operator, email, developer_url, business_info)
+   블록: title, description, favicon, logo (머리글 로고), nav (머리글 메뉴), header_actions (머리글 오른쪽 버튼),
+         footer_brand, footer_links, head (추가 head 요소), content, scripts (body 끝 스크립트) #}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ SITE.name }}{% endblock %}</title>
-    {% include "common/favicon.html" %}
-    <meta name="description" content="{% block description %}후불 매장용 QR 주문 서비스. 앱 설치나 단말기 구매 없이, 가지고 계신 태블릿으로 주문 접수부터 주방, 홀 서빙, 테이블 정산까지.{% endblock %}">
+    {% block favicon %}{% include "common/favicon_jwp.html" %}{% endblock %}
+    <meta name="description" content="{% block description %}작은 가게, 작은 학원, 작은 회사에 맞는 업무 시스템. QR Order · Academy · 바로ERP와 맞춤 구축을 만든 사람이 직접 설치하고 운영합니다.{% endblock %}">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -45,21 +47,25 @@
 
 <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-toss-border/60">
     <div class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
+        {% block logo %}
         <a href="/" class="flex items-center gap-2.5 shrink-0">
-            <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-9 h-9">
-            <span class="text-lg font-extrabold tracking-tight">{{ SITE.name }}</span>
+            <img src="{{ url_for('static', path='favicon-jwp/favicon.svg') }}" alt="" class="w-9 h-9">
+            <span class="text-lg font-extrabold tracking-tight">JWP-SYSTEM</span>
         </a>
+        {% endblock %}
         <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-toss-gray">
-            <a href="/#flow" class="hover:text-toss-dark transition">주문 흐름</a>
-            <a href="/#screens" class="hover:text-toss-dark transition">화면</a>
-            <a href="/#start" class="hover:text-toss-dark transition">도입 방법</a>
-            <a href="/#pricing" class="hover:text-toss-dark transition">요금</a>
-            <a href="/#faq" class="hover:text-toss-dark transition">FAQ</a>
-            <a href="/inquiries" class="hover:text-toss-dark transition">문의 게시판</a>
+            {% block nav %}
+            <a href="/#products" class="hover:text-toss-dark transition">제품</a>
+            <a href="/#custom" class="hover:text-toss-dark transition">맞춤 구축</a>
+            <a href="/#start" class="hover:text-toss-dark transition">도입 방식</a>
+            <a href="{{ SITE.developer_url }}" target="_blank" rel="noopener" class="hover:text-toss-dark transition">만든 사람</a>
+            <a href="/contact" class="hover:text-toss-dark transition">문의</a>
+            {% endblock %}
         </nav>
         <div class="flex items-center gap-2">
-            <a href="/login" class="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold bg-toss-lightGray hover:bg-slate-200 transition">직원 로그인</a>
-            <a href="/inquiries/new?type=intro" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">도입 문의</a>
+            {% block header_actions %}
+            <a href="/contact" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">문의하기</a>
+            {% endblock %}
         </div>
     </div>
 </header>
@@ -71,16 +77,25 @@
 <footer class="bg-toss-dark text-toss-gray py-10 px-5 text-xs">
     <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between gap-4">
         <div class="space-y-1.5">
+            {% block footer_brand %}
             <div class="flex items-center gap-2">
-                <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-6 h-6">
-                <span class="font-bold text-white text-sm">{{ SITE.name }}</span>
+                <img src="{{ url_for('static', path='favicon-jwp/favicon.svg') }}" alt="" class="w-6 h-6">
+                <span class="font-bold text-white text-sm">JWP-SYSTEM</span>
             </div>
-            <p>운영 {{ SITE.operator }} · 문의 <a href="mailto:{{ SITE.email }}" class="hover:text-white">{{ SITE.email }}</a></p>
+            {% endblock %}
+            <p>운영 <a href="{{ SITE.developer_url }}" target="_blank" rel="noopener" class="hover:text-white">{{ SITE.operator }}</a> · 문의 <a href="mailto:{{ SITE.email }}" class="hover:text-white">{{ SITE.email }}</a></p>
             {% if SITE.business_info %}<p>{{ SITE.business_info }}</p>{% endif %}
         </div>
-        <div class="flex sm:flex-col sm:items-end gap-3 sm:gap-1.5">
-            <a href="/inquiries" class="hover:text-white">문의 게시판</a>
-            <a href="/login" class="hover:text-white">직원 로그인</a>
+        <div class="flex flex-wrap sm:flex-col sm:items-end gap-3 sm:gap-1.5">
+            <p class="flex flex-wrap gap-x-3 gap-y-1">
+                <a href="/qr" class="hover:text-white">QR Order</a>
+                <a href="https://jwp-academy.duckdns.org/intro" class="hover:text-white">Academy</a>
+                <a href="/#erp" class="hover:text-white">바로ERP</a>
+                <a href="/#custom" class="hover:text-white">맞춤 구축</a>
+            </p>
+            {% block footer_links %}
+            <a href="/contact/board" class="hover:text-white">문의 목록</a>
+            {% endblock %}
             <p>© JWP-SYSTEM</p>
         </div>
     </div>

@@ -1,0 +1,49 @@
+{# contact/board.html — 회사 문의 공개 목록 (/contact/board)  (레이아웃: public/base.html)
+   context: result (ContactPage). 내용·연락처·회사명은 절대 내보내지 않는다. 이름은 가린다(mask_name).
+   내용 확인·수정은 시스템 관리자 /super/contacts. #}
+{% extends "public/base.html" %}
+
+{% block title %}문의 목록 - JWP-SYSTEM{% endblock %}
+
+{% block content %}
+<section class="px-5 py-14">
+    <div class="max-w-3xl mx-auto space-y-6">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight">문의 목록</h1>
+                <p class="text-sm text-toss-gray font-medium mt-1">남겨 주신 문의는 만든 사람이 직접 확인하고 이메일로 답장드립니다. 내용과 연락처는 공개되지 않습니다.</p>
+            </div>
+            <a href="/contact" class="px-5 py-3 rounded-2xl bg-toss-blue hover:bg-toss-hoverBlue text-white font-bold text-sm transition">문의하기</a>
+        </div>
+
+        {% if result.items %}
+            <ul class="bg-white rounded-2xl border border-toss-border divide-y divide-toss-border/70">
+                {% for c in result.items %}
+                    <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-toss-lightBlue text-toss-blue shrink-0">{{ CONTACT_TOPICS.get(c.topic, c.topic) }}</span>
+                        <span class="flex-1 min-w-[8rem] font-semibold text-sm">🔒 {{ c.name | mask_name }}님의 문의</span>
+                        <span class="text-xs text-toss-gray">{{ c.created_at | local_dt('%Y-%m-%d') }}</span>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-50 text-emerald-600' if c.is_done else 'bg-toss-lightGray text-toss-gray' }}">{{ '답변 완료' if c.is_done else '확인 중' }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if result.pages > 1 %}
+                <nav class="flex items-center justify-center gap-2 text-sm" aria-label="페이지">
+                    {% if result.page > 1 %}
+                        <a href="/contact/board?page={{ result.page - 1 }}" class="px-3 py-1.5 rounded-lg bg-white border border-toss-border hover:bg-toss-bg font-semibold">이전</a>
+                    {% endif %}
+                    <span class="text-toss-gray font-medium">{{ result.page }} / {{ result.pages }}</span>
+                    {% if result.page < result.pages %}
+                        <a href="/contact/board?page={{ result.page + 1 }}" class="px-3 py-1.5 rounded-lg bg-white border border-toss-border hover:bg-toss-bg font-semibold">다음</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="py-16 text-center bg-toss-bg rounded-2xl border-2 border-dashed border-toss-border">
+                <p class="font-bold text-toss-gray">아직 문의가 없습니다.</p>
+                <a href="/contact" class="inline-block mt-3 text-sm font-bold text-toss-blue hover:underline">첫 문의 남기기</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

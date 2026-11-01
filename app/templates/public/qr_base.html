@@ -1,0 +1,42 @@
+{# public/qr_base.html — QR Order(세부 시스템) 공개 화면 레이아웃: 소개 /qr, 문의 게시판 /inquiries
+   public/base.html(회사 화면)을 확장해 QR Order 아이콘·로고·메뉴, 직원 로그인 링크를 넣는다. #}
+{% extends "public/base.html" %}
+
+{% block description %}후불 매장용 QR 주문 서비스. 앱 설치나 단말기 구매 없이, 가지고 계신 태블릿으로 주문 접수부터 주방, 홀 서빙, 테이블 정산까지.{% endblock %}
+
+{% block favicon %}{% include "common/favicon.html" %}{% endblock %}
+
+{% block logo %}
+<a href="/qr" class="flex items-center gap-2.5 shrink-0">
+    <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-9 h-9">
+    <span class="text-lg font-extrabold tracking-tight">{{ SITE.name }}</span>
+</a>
+{% endblock %}
+
+{% block nav %}
+    <a href="/qr#flow" class="hover:text-toss-dark transition">주문 흐름</a>
+    <a href="/qr#screens" class="hover:text-toss-dark transition">화면</a>
+    <a href="/qr#demo" class="hover:text-toss-dark transition">데모</a>
+    <a href="/qr#pricing" class="hover:text-toss-dark transition">요금</a>
+    <a href="/qr#faq" class="hover:text-toss-dark transition">FAQ</a>
+    <a href="/inquiries" class="hover:text-toss-dark transition">문의 게시판</a>
+    <a href="/" class="hover:text-toss-dark transition">JWP-SYSTEM</a>
+{% endblock %}
+
+{% block header_actions %}
+    <a href="/login" class="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold bg-toss-lightGray hover:bg-slate-200 transition">직원 로그인</a>
+    <a href="/inquiries/new?type=intro" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">도입 문의</a>
+{% endblock %}
+
+{% block footer_brand %}
+<div class="flex items-center gap-2">
+    <img src="{{ url_for('static', path='favicon/favicon.svg') }}" alt="" class="w-6 h-6">
+    <span class="font-bold text-white text-sm">{{ SITE.name }}</span>
+    <span>by <a href="/" class="hover:text-white">JWP-SYSTEM</a></span>
+</div>
+{% endblock %}
+
+{% block footer_links %}
+    <a href="/inquiries" class="hover:text-white">문의 게시판</a>
+    <a href="/login" class="hover:text-white">직원 로그인</a>
+{% endblock %}

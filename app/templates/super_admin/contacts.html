@@ -1,0 +1,100 @@
+{# super_admin/contacts.html — 회사 문의 관리 (/contact 폼으로 받은 문의: 내용·연락처 확인, 수정, 메모, 처리 완료, 삭제)
+   context: result (ContactPage), only_open (처리 전만 보기), open_contacts #}
+{% extends "base.html" %}
+
+{% block title %}회사 문의 - JWP-SYSTEM 시스템 관리자{% endblock %}
+
+{% block header %}
+{% with active = 'contacts' %}{% include "super_admin/fragments/super_header.html" %}{% endwith %}
+{% endblock %}
+
+{% block content %}
+{% set input_cls = 'w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500' %}
+{% set label_cls = 'block text-xs font-bold text-gray-500 mb-1' %}
+<div class="max-w-4xl mx-auto py-4 space-y-4">
+    <div class="flex items-center justify-between">
+        <div class="inline-flex p-1 bg-gray-200/70 rounded-xl gap-1 text-sm font-semibold">
+            <a href="/super/contacts" class="px-3 py-1.5 rounded-lg {{ 'bg-white shadow-sm' if only_open else 'text-gray-500' }}">처리 전 {{ open_contacts }}</a>
+            <a href="/super/contacts?all=1" class="px-3 py-1.5 rounded-lg {{ 'bg-white shadow-sm' if not only_open else 'text-gray-500' }}">전체</a>
+        </div>
+        <a href="/contact/board" target="_blank" rel="noopener" class="text-xs font-semibold text-blue-600 hover:underline">공개 목록 보기</a>
+    </div>
+
+    {% for c in result.items %}
+        <details id="c-{{ c.id }}" class="bg-white rounded-2xl border border-gray-200 shadow-sm" {% if only_open and loop.first %}open{% endif %}>
+            <summary class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 cursor-pointer list-none">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{{ CONTACT_TOPICS.get(c.topic, c.topic) }}</span>
+                <span class="flex-1 min-w-[10rem] font-semibold text-sm truncate">{{ c.name }}{% if c.company %} · {{ c.company }}{% endif %}</span>
+                <span class="text-xs text-gray-400">#{{ c.id }} · {{ c.created_at | local_dt }}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ 'bg-emerald-50 text-emerald-600' if c.is_done else 'bg-red-50 text-red-500' }}">{{ '처리 완료' if c.is_done else '처리 전' }}</span>
+            </summary>
+            <form method="post" action="/super/contacts/{{ c.id }}" class="px-5 pb-5 space-y-4 border-t border-gray-100 pt-4">
+                <div>
+                    <label for="topic-{{ c.id }}" class="{{ label_cls }}">문의 종류</label>
+                    <select id="topic-{{ c.id }}" name="topic" class="{{ input_cls }}">
+                        {% for value, label in CONTACT_TOPICS.items() %}
+                            <option value="{{ value }}" {% if value == c.topic %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    {% for key, label, maxlen, required, type in [
+                        ('name', '이름', 30, true, 'text'),
+                        ('company', '회사·사업장명', 100, false, 'text'),
+                        ('email', '이메일', 100, true, 'email'),
+                        ('phone', '전화번호', 30, false, 'tel'),
+                    ] %}
+                        <div>
+                            <label for="{{ key }}-{{ c.id }}" class="{{ label_cls }}">{{ label }}</label>
+                            <input id="{{ key }}-{{ c.id }}" name="{{ key }}" type="{{ type }}" maxlength="{{ maxlen }}" {% if required %}required{% endif %}
+                                   value="{{ c[key] or '' }}" class="{{ input_cls }}">
+                        </div>
+                    {% endfor %}
+                </div>
+                <div>
+                    <label for="scale-{{ c.id }}" class="{{ label_cls }}">업종·규모</label>
+                    <input id="scale-{{ c.id }}" name="scale" maxlength="100" value="{{ c.scale or '' }}" class="{{ input_cls }}">
+                </div>
+                <div>
+                    <label for="content-{{ c.id }}" class="{{ label_cls }}">문의 내용</label>
+                    <textarea id="content-{{ c.id }}" name="content" rows="6" required maxlength="3000" class="{{ input_cls }}">{{ c.content }}</textarea>
+                </div>
+                <div>
+                    <label for="memo-{{ c.id }}" class="{{ label_cls }}">관리자 메모 (비공개)</label>
+                    <textarea id="memo-{{ c.id }}" name="memo" rows="3" maxlength="4000" placeholder="답장 내용, 진행 상황 등" class="{{ input_cls }}">{{ c.memo or '' }}</textarea>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" name="is_done" {% if c.is_done %}checked{% endif %} class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                            처리 완료 (공개 목록에 '답변 완료')
+                        </label>
+                        <a href="mailto:{{ c.email }}?subject={{ ('[JWP-SYSTEM] ' ~ CONTACT_TOPICS.get(c.topic, '') ~ ' 문의 답변') | urlencode }}"
+                           class="text-xs font-semibold text-blue-600 hover:underline">메일로 답장</a>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" formaction="/super/contacts/{{ c.id }}/delete" formnovalidate
+                                onclick="return confirm('이 문의를 삭제할까요? 되돌릴 수 없습니다.')"
+                                class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 text-sm font-semibold">삭제</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">저장</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400">마지막 수정 {{ c.updated_at | local_dt }}</p>
+            </form>
+        </details>
+    {% else %}
+        <div class="py-16 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p class="font-bold text-gray-500">{{ '처리할 문의가 없습니다.' if only_open else '문의가 없습니다.' }}</p>
+        </div>
+    {% endfor %}
+
+    {% if result.pages > 1 %}
+        <nav class="flex items-center justify-center gap-2 text-sm" aria-label="페이지">
+            {% set qs = '&all=1' if not only_open else '' %}
+            {% if result.page > 1 %}<a href="/super/contacts?page={{ result.page - 1 }}{{ qs }}" class="px-3 py-1.5 rounded-lg bg-white border font-semibold">이전</a>{% endif %}
+            <span class="text-gray-500">{{ result.page }} / {{ result.pages }}</span>
+            {% if result.page < result.pages %}<a href="/super/contacts?page={{ result.page + 1 }}{{ qs }}" class="px-3 py-1.5 rounded-lg bg-white border font-semibold">다음</a>{% endif %}
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

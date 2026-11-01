@@ -13,7 +13,7 @@ from app.core.security import require_super_admin
 from app.database.session import engine
 from app.services import demo_service
 from app.routers import (
-    auth, client, demo, events, inquiries, landing, menu, store, super_admin, super_auth, support, tables,
+    auth, client, contact, demo, events, inquiries, landing, menu, store, super_admin, super_auth, support, tables,
 )
 
 
@@ -47,19 +47,20 @@ def _register_routes(app: FastAPI) -> None:
     async def health_check():
         return {"status": "ok", "app": settings.PROJECT_NAME}
 
-    # 브라우저가 HTML이 아닌 응답(JSON 등)에서도 자동으로 요청하는 기본 경로
+    # 브라우저가 HTML이 아닌 응답(JSON 등)에서도 자동으로 요청하는 기본 경로. 루트(/)가 회사 화면이라 회사 아이콘
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         return FileResponse(
-            f"{settings.STATIC_DIR}/favicon/favicon.ico",
+            f"{settings.STATIC_DIR}/favicon-jwp/favicon.ico",
             media_type="image/x-icon",
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
     # tags는 각 라우터에 정의되어 있으므로 include 시 다시 넣지 않는다 (OpenAPI 중복 방지)
-    app.include_router(landing.router)      # 서비스 소개 (/)
+    app.include_router(landing.router)      # 회사 첫 화면 (/), QR Order 소개 (/qr)
     app.include_router(demo.router)         # 랜딩 '주문 입력 테스트' 공개 데모 (/demo/*)
     app.include_router(inquiries.router)    # 문의 게시판 (/inquiries)
+    app.include_router(contact.router)      # 회사 문의 폼 -> 메일 발송 (/contact)
     app.include_router(auth.router)         # 스태프 로그인/로그아웃
     app.include_router(client.router)       # 고객 주문
     app.include_router(store.router)        # 식당용: /admin, /kitchen, /hall

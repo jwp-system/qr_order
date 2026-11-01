@@ -211,3 +211,20 @@ class Inquiry(Base, TimestampMixin):
     def has_new_answer(self) -> bool:
         """매장이 아직 확인하지 않은 답변이 있는가"""
         return bool(self.answered_at) and (self.answer_seen_at is None or self.answer_seen_at < self.answered_at)
+
+
+class ContactMessage(Base, TimestampMixin):
+    """회사 문의 폼(/contact)으로 받은 문의. QR Order 문의 게시판(inquiries)과 별개.
+    공개 게시판(/contact/board)에는 종류·가린 이름·날짜·처리 상태만 보이고, 내용과 연락처는 시스템 관리자(/super/contacts)만 본다."""
+    __tablename__ = "contacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    topic: Mapped[str] = mapped_column(String(20), nullable=False, index=True)   # services/contact_service.CONTACT_TOPICS 키
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    email: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    scale: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)       # 업종·규모
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)               # 관리자 메모 (비공개)
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)

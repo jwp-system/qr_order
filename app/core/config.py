@@ -20,7 +20,8 @@ class Settings(BaseSettings):
 
     # --- 랜딩 페이지 (/) ---
     OPERATOR_NAME: str = "박종욱"                      # 운영자 (1인 개발/운영)
-    CONTACT_EMAIL: str = "jw.park363@gmail.com"       # 도입 문의 메일
+    CONTACT_EMAIL: str = "jw.park363@gmail.com"       # 도입 문의 메일 (회사 첫 화면 문의 폼 /contact 의 받는 주소)
+    DEVELOPER_URL: str = "https://jwpark363.github.io/myhome/"  # 만든 사람 소개 링크
     BUSINESS_INFO: str | None = None                   # 하단 사업자 정보 한 줄 (상호 · 대표자 · 사업자등록번호 등)
     # 랜딩 '주문 입력 테스트' 데모 매장 (seed.py). 둘 다 설정되면 랜딩에 QR과 공개 주방 보드를 보여준다.
     # 이 매장의 주문은 30분 뒤 자동 삭제되므로 운영 매장 코드를 넣지 말 것 (services/demo_service.py).
@@ -30,6 +31,13 @@ class Settings(BaseSettings):
     # 테이블 QR에 넣을 고객 접속 주소 (예: https://order.example.com).
     # 비우면 관리자가 접속한 주소를 쓴다 (localhost로 접속하면 휴대폰에서 열리지 않으니 운영 시 설정할 것).
     PUBLIC_BASE_URL: str | None = None
+
+    # --- 문의 메일 발송 (/contact, services/mail_service.py) ---
+    # Gmail은 SMTP_USER=보내는 계정, SMTP_PASSWORD=앱 비밀번호(2단계 인증 후 발급). 비우면 문의 폼이 발송 불가 안내를 띄운다.
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587                               # STARTTLS
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
 
     # --- 서버 호스트 & 도메인 ---
     SERVER_HOST: str = "0.0.0.0"

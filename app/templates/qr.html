@@ -1,8 +1,8 @@
-{# landing.html — 서비스 소개 (/)  (레이아웃: public/base.html)
+{# qr.html — QR Order 소개 (/qr)  (레이아웃: public/qr_base.html)
    context: demo ({order_url, table_number} | None — services/demo_service.landing_context), recent_inquiries
    원칙: 1인 개발·운영 서비스. 실제 구현된 기능과 실제 상황만 적는다 (수치·후기·기능 과장 금지).
    문의는 문의 게시판(/inquiries)으로 받는다. 스크린샷: static/landing/ (README의 images/와 같은 파일) #}
-{% extends "public/base.html" %}
+{% extends "public/qr_base.html" %}
 
 {% block title %}{{ SITE.name }} - 테이블 QR 주문부터 서빙, 정산까지{% endblock %}
 

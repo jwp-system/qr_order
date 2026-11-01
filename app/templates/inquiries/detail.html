@@ -1,7 +1,7 @@
-{# inquiries/detail.html — 문의 보기  (레이아웃: public/base.html)
+{# inquiries/detail.html — 문의 보기  (레이아웃: public/qr_base.html)
    context: inquiry, unlocked (내용을 보여도 되는지), error
    비밀글은 비밀번호를 POST로 확인한 응답에서만 내용을 보여준다. 연락처는 보여주지 않는다. #}
-{% extends "public/base.html" %}
+{% extends "public/qr_base.html" %}
 
 {% block title %}{{ inquiry.title if unlocked else '비밀글' }} - 문의 게시판{% endblock %}
 

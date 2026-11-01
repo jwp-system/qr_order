@@ -1,5 +1,5 @@
 {# super_admin/fragments/super_header.html — 시스템 관리자 공통 헤더
-   context: active ('dashboard' | 'inquiries'), unanswered (답변 대기 문의 수) #}
+   context: active ('dashboard' | 'inquiries' | 'contacts'), unanswered (답변 대기 문의 수), open_contacts (처리 전 회사 문의 수, 있을 때만) #}
 <header class="bg-slate-900 border-b border-slate-800 text-white">
     <div class="px-6 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-3">
@@ -11,13 +11,15 @@
         </form>
     </div>
     <nav class="px-4 flex bg-slate-800/60" aria-label="시스템 관리자 메뉴">
-        {% for key, href, label in [('dashboard', '/super/dashboard', '매장 · 라이선스'), ('inquiries', '/super/inquiries', '문의 게시판')] %}
+        {% for key, href, label in [('dashboard', '/super/dashboard', '매장 · 라이선스'), ('inquiries', '/super/inquiries', 'QR 문의 게시판'), ('contacts', '/super/contacts', '회사 문의')] %}
             <a href="{{ href }}" {% if key == active %}aria-current="page"{% endif %}
                class="px-3 py-2.5 text-sm font-semibold border-b-2 flex items-center gap-1.5
                       {{ 'border-white text-white' if key == active else 'border-transparent text-slate-400 hover:text-white' }}">
                 {{ label }}
                 {% if key == 'inquiries' and unanswered %}
                     <span class="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[11px] font-bold">{{ unanswered }}</span>
+                {% elif key == 'contacts' and open_contacts %}
+                    <span class="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[11px] font-bold">{{ open_contacts }}</span>
                 {% endif %}
             </a>
         {% endfor %}

@@ -15,7 +15,7 @@ from app.database.models import LicenseStatus, Order, Store, Table
 from app.database.session import get_db
 from app.domain.roles import Role
 from app.services.auth_service import DEFAULT_PINS
-from app.services import inquiry_service
+from app.services import contact_service, inquiry_service
 from app.services.table_service import new_qr_token
 
 router = APIRouter(prefix="/super", tags=["Super Admin"])
@@ -269,3 +269,41 @@ async def super_answer_inquiry(
 async def super_delete_inquiry(inquiry_id: int, db: AsyncSession = Depends(get_db)):
     await inquiry_service.delete(db, await inquiry_service.get(db, inquiry_id))
     return RedirectResponse(url="/super/inquiries?all=1", status_code=303)
+
+
+# =====================================================================
+# 회사 문의 관리 (/super/contacts) — /contact 폼으로 받은 문의 확인·수정
+# =====================================================================
+@router.get("/contacts", response_class=HTMLResponse)
+async def super_contacts(
+    request: Request,
+    page: int = 1,
+    show_all: bool = Query(False, alias="all"),  # 기본은 처리 전만
+    db: AsyncSession = Depends(get_db),
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="super_admin/contacts.html",
+        context={
+            "result": await contact_service.list_page(db, page, only_open=not show_all),
+            "only_open": not show_all,
+            "open_contacts": await contact_service.open_count(db),
+        },
+    )
+
+
+@router.post("/contacts/{contact_id}")
+async def super_update_contact(request: Request, contact_id: int, db: AsyncSession = Depends(get_db)):
+    """내용·메모·처리 완료 저장 후 전체 목록의 해당 문의로 (처리 전 목록에서는 사라질 수 있으므로)"""
+    contact = await contact_service.get(db, contact_id)
+    try:
+        await contact_service.update(db, contact, await request.form())
+    except contact_service.ContactError as e:
+        raise HTTPException(status_code=422, detail=e.message) from None
+    return RedirectResponse(url=f"/super/contacts?all=1#c-{contact_id}", status_code=303)
+
+
+@router.post("/contacts/{contact_id}/delete")
+async def super_delete_contact(contact_id: int, db: AsyncSession = Depends(get_db)):
+    await contact_service.delete(db, await contact_service.get(db, contact_id))
+    return RedirectResponse(url="/super/contacts?all=1", status_code=303)

@@ -13,6 +13,7 @@ from app.domain.order_status import (
     can_role_change,
 )
 from app.domain.inquiry import INQUIRY_CATEGORIES, mask_name
+from app.services.contact_service import CONTACT_TOPICS
 from app.domain.license import LICENSE_LABELS, readonly_until
 from app.domain.menu import ITEM_FLAGS
 from app.domain.roles import Role
@@ -61,11 +62,13 @@ templates.env.globals.update(
     readonly_until=readonly_until,        # 서비스 종료일 -> 조회 가능 마지막 날
     LICENSE_LABELS=LICENSE_LABELS,        # 라이선스 표시명 (체험/정식/종료)
     INQUIRY_CATEGORIES=INQUIRY_CATEGORIES,  # 문의 분류 표시명
+    CONTACT_TOPICS=CONTACT_TOPICS,          # 회사 문의 종류 표시명 (/contact)
     # 공개 화면(랜딩, 문의 게시판) 공통 정보
     SITE={
         "name": settings.PROJECT_NAME,
         "operator": settings.OPERATOR_NAME,
         "email": settings.CONTACT_EMAIL,
+        "developer_url": settings.DEVELOPER_URL,
         "business_info": settings.BUSINESS_INFO,
     },  # 메뉴 상태 (관리자 토글 / 고객 배지)
     print=_debug_print,
