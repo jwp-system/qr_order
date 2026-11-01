@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # --- 랜딩 페이지 (/) ---
     OPERATOR_NAME: str = "박종욱"                      # 운영자 (1인 개발/운영)
     CONTACT_EMAIL: str = "jw.park363@gmail.com"       # 도입 문의 메일 (회사 첫 화면 문의 폼 /contact 의 받는 주소)
-    DEVELOPER_URL: str = "https://jwpark363.github.io/myhome/"  # 만든 사람 소개 링크
+    DEVELOPER_URL: str = "https://jwp-system.github.io/jwpark363/"  # 만든 사람 소개 링크
     BUSINESS_INFO: str | None = None                   # 하단 사업자 정보 한 줄 (상호 · 대표자 · 사업자등록번호 등)
     # 랜딩 '주문 입력 테스트' 데모 매장 (seed.py). 둘 다 설정되면 랜딩에 QR과 공개 주방 보드를 보여준다.
     # 이 매장의 주문은 30분 뒤 자동 삭제되므로 운영 매장 코드를 넣지 말 것 (services/demo_service.py).
