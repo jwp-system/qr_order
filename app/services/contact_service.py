@@ -19,7 +19,7 @@ PAGE_SIZE = 20
 CONTACT_TOPICS: dict[str, str] = {
     "qr": "QR Order (식당·주점)",
     "academy": "Academy (학원)",
-    "erp": "바로ERP 파일럿 사전 신청",
+    "erp": "바로ERP (소기업 업무)",
     "custom": "맞춤 구축 상담",
     "etc": "기타 문의",
 }

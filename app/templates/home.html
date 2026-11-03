@@ -1,7 +1,7 @@
 {# home.html — 회사 첫 화면 (/)  (레이아웃: public/base.html)
    내용 기준: jwp-system-site-proposal.md 「첫 화면 시안」. 제품 소개는 각 제품 페이지(/qr, Academy /intro)에 두고 여기서는 길만 나눈다.
    문의는 모두 메일 문의 폼(/contact?type=...)으로 보낸다. 데모 링크는 두지 않는다 (각 제품 페이지에 있음).
-   원칙: 1인 개발·운영. 실제 있는 제품·숫자만 적는다 (바로ERP는 '개발 중', 가격은 '예정').
+   원칙: 1인 개발·운영. 실제 있는 제품·숫자만 적는다.
    제품 색: QR Order=호박(amber), Academy=초록(emerald), 바로ERP=파랑(blue) #}
 {% extends "public/base.html" %}
 
@@ -13,6 +13,7 @@
 {% set eyebrow = 'text-xs font-black tracking-widest text-toss-blue' %}
 {% set h2 = 'text-3xl sm:text-4xl font-black tracking-tight leading-tight' %}
 {% set academy_url = 'https://jwp-academy.duckdns.org/intro' %}
+{% set erp_url = 'https://baroerp-demo-483077139561.us-central1.run.app/' %}
 
 
     <!-- 히어로 -->
@@ -103,12 +104,12 @@
                     </div>
                 </article>
 
-                {# 바로ERP — 재고 장부 (개발 중) #}
+                {# 바로ERP — 재고 장부 #}
                 <article id="erp" class="flex flex-col rounded-3xl border border-blue-200 bg-blue-50/40 p-6 space-y-5">
                     <div class="space-y-2">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-xs font-bold text-blue-700">도소매 · 제조 · 서비스 소기업</span>
-                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">개발 중 · 파일럿 사전 모집</span>
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">운영 중 · 클라우드·설치형</span>
                         </div>
                         <h3 class="text-2xl font-black">바로ERP</h3>
                         <p class="text-sm text-toss-gray font-medium leading-relaxed">매입·매출·재고·수금을 한 장부로. 은행·홈택스 엑셀을 올리면 전표와 자동으로 맞춥니다.</p>
@@ -122,8 +123,9 @@
                             <li class="flex justify-between text-red-500"><span>30일 초과 미수</span><span>3곳</span></li>
                         </ul>
                     </div>
-                    <div class="mt-auto">
-                        <a href="/contact?type=erp" class="block text-center px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">파일럿 사전 신청</a>
+                    <div class="mt-auto flex gap-2">
+                        <a href="{{ erp_url }}" class="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-toss-blue hover:bg-toss-hoverBlue transition">소개 보기</a>
+                        <a href="/contact?type=erp" class="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-bold bg-white border border-blue-200 hover:bg-blue-50 transition">문의하기</a>
                     </div>
                 </article>
             </div>
@@ -232,8 +234,8 @@
                             ('맞는 곳', '후불 식당·주점, 주방·홀이 나뉜 매장', '강사 1~3명, 학생 100명 안팎 학원', '임직원 50인 이하, 회계 담당 1~3명'),
                             ('형태', '클라우드, 브라우저 접속', '학원 PC 설치형 + https 주소', '클라우드(월 이용료) 또는 설치형(1회 구축)'),
                             ('필요한 것', '태블릿 또는 PC, 테이블 QR 인쇄', '항상 켜 둘 PC, 문자용 안드로이드 폰', '크롬·엣지 브라우저, 은행·홈택스 엑셀'),
-                            ('비용', '파일럿 기간 무료', '운영비 0원 (문자 요금제·도메인 별도)', '클라우드 월 3~5만 원대 예정'),
-                            ('시작까지', '보통 3일', '설치·명단 이전 후 바로', '교육 1시간 목표'),
+                            ('비용', '파일럿 기간 무료', '운영비 0원 (문자 요금제·도메인 별도)', '클라우드 월 3~5만 원대'),
+                            ('시작까지', '보통 3일', '설치·명단 이전 후 바로', '교육 1시간 후 바로'),
                         ] %}
                             <tr class="{{ '' if loop.last else 'border-b border-toss-border/60' }}">
                                 <th class="p-4 font-bold text-toss-dark whitespace-nowrap">{{ label }}</th>
@@ -245,7 +247,6 @@
                     </tbody>
                 </table>
             </div>
-            <p class="text-center text-xs text-toss-gray mt-4">바로ERP는 개발 중이며 가격은 예정입니다. 확정되면 이 표를 바꿉니다.</p>
         </div>
     </section>
 
